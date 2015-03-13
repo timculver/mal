@@ -26,8 +26,12 @@ int main(int argc, char* argv[]) {
   repl_env->set(symbol("eval"), fn1([repl_env](MalType* form) { return EVAL(form, repl_env); }));
   rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))", repl_env);
 
+  if (argc >= 2) {
+    rep("(load-file \"" + MalString::escape(string(argv[1])) + "\")", repl_env);
+  }
+
   MalList* argv_list = eol;
-  for (int ii = argc - 1; ii >= 1; ii--)
+  for (int ii = argc - 1; ii >= 2; ii--)
     argv_list = new MalList(new MalString(string(argv[ii])), argv_list);
   repl_env->set(symbol("*ARGV*"), argv_list);
   
