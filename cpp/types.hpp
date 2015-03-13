@@ -133,6 +133,7 @@ struct MalString : public MalType {
   static std::string unescape(std::string);
   static std::string escape(std::string);
 };
+template<> inline std::string print_type<MalString>() { return "String"; }
 
 struct MalInt : public MalType {
   MalInt(int v_) : v(v_) { }

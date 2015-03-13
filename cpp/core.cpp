@@ -2,8 +2,10 @@
 
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 #include "env.hpp"
+#include "reader.hpp"
 
 using namespace std;
 
@@ -84,6 +86,15 @@ Env* core() {
     return nil;
   }));
 
-
+  // Files
+  env->set(symbol("read-string"), fn1<MalString>([](MalString* s) {
+    return read_str(s->s); }));
+  env->set(symbol("slurp"), fn1<MalString>([](MalString* filename) {
+    ifstream file(filename->s);
+    stringstream sstr;
+    sstr << file.rdbuf();
+    return new MalString(sstr.str());
+  }));
+    
   return env;
 }

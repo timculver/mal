@@ -103,13 +103,6 @@ MalType* EVAL(MalType* form, Env* env) {
           if (rest->size() > 2)
             throw Error{"Too many arguments for fn*"};
           return new MalLambda(bindings, body, env);
-#if 0
-          function<MalType*(MalList*)> f = [bindings, body, env](MalList* args) {
-            Env* closure = new Env(env, bindings, args);
-            return EVAL(body, closure);
-          };
-          return new MalFn(f);
-#endif
         }
       }
       // Apply
