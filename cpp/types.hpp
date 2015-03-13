@@ -48,12 +48,12 @@ struct MalList : public MalType {
   template <typename T = MalType>
   T* get(int ii) {
     MalList* p = this;
-    while (ii-- > 0) {
+    while (ii-- > 0)
       p = p->cdr;
-    }
     return cast<T>(p->car);
   }
   int size();
+  template <typename F> void for_each(F&& f);
   
   MalType *car;
   MalList *cdr;
@@ -68,6 +68,12 @@ struct MalEol : public MalList {
   MalEol() : MalList(nullptr, nullptr) { }
   bool equal(MalType*) const { return true; }
 };
+
+
+template <typename F> void MalList::for_each(F&& f) {
+  for (auto p = this; p != eol; p = p->cdr)
+    f(p->car);
+}
 
 struct MalNil : public MalType {
   MalNil() { }
@@ -176,6 +182,14 @@ struct MalVector : public MalType {
     if (!ret)
       throw Error{"Expected " + print_type<T>() + " at position " + std::to_string(ii) + " in list: `" + print() + "`"};
     return ret;
+  }
+  int size() {
+    return int(e.size());
+  }
+  template <typename F>
+  void for_each(F&& f) {
+    for (auto i : e)
+      f(i);
   }
   
   const std::vector<MalType*> e;

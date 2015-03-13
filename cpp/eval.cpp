@@ -90,7 +90,7 @@ MalType* EVAL(MalType* form, Env* env) {
         else
           return iffalse == eol ? nil : EVAL(iffalse->car, env);
       } else if (symbol->s == "fn*") {
-        auto bindings = rest->get<MalList>(0);
+        auto bindings = rest->get(0);
         auto body = rest->get(1);
         function<MalType*(MalList*)> f = [bindings, body, env](MalList* args) {
           Env* closure = new Env(env, bindings, args);

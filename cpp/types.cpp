@@ -129,15 +129,35 @@ string MalFn::print(bool) const {
 
 bool equal(MalType* a, MalType* b);
 
-template <typename A, typename B>
-bool equal_seq(A* a, B* b) {
-  return std::equal(begin(a), end(a), begin(b), end(b), ::equal);
+bool equal_list_vector(MalList* list, MalVector* vector) {
+  auto p = list;
+  auto q = vector->e.begin();
+  while (true) {
+    bool p_end = (p == eol);
+    bool q_end = (q == vector->e.end());
+    if (p_end && q_end)
+      return true;
+    if (p_end || q_end)
+      return false;
+    if (!equal(p->car, *q))
+      return false;
+    p = p->cdr;
+    q++;
+  }
+  return true;
 }
 
 bool equal(MalType* a, MalType* b) {
+  // Reference equality
   if (a == b)
     return true;
-  if (typeid(*a) != typeid(*b))
-    return false;
-  return a->equal(b);
+  // Simple single-dispatch cases
+  if (typeid(*a) == typeid(*b))
+    return a->equal(b);
+  // Double-dispatch cases
+  if (dynamic_cast<MalList*>(a) && dynamic_cast<MalVector*>(b))
+    return equal_list_vector(static_cast<MalList*>(a), static_cast<MalVector*>(b));
+  if (dynamic_cast<MalList*>(b) && dynamic_cast<MalVector*>(a))
+    return equal_list_vector(static_cast<MalList*>(b), static_cast<MalVector*>(a));
+  return false;
 }
