@@ -127,6 +127,10 @@ string MalFn::print(bool) const {
   return "#<function>";
 }
 
+string MalLambda::print(bool) const {
+  return "#<lambda>";
+}
+
 bool equal(MalType* a, MalType* b);
 
 bool equal_list_vector(MalList* list, MalVector* vector) {

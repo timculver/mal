@@ -8,12 +8,13 @@
 
 #include "RBTree.h"
 
+struct MalType;
+class Env;
+
 struct Error {
   Error(std::string message_) : message(message_) { }
   std::string message;
 };
-
-struct MalType;
 
 template <typename T> inline std::string print_type();
 
@@ -169,6 +170,19 @@ MalFn* fn3(F f) {
   return new MalFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1), args->get<T3>(2)); });
 }
 
+struct MalLambda : public MalType {
+  MalLambda(MalType* bindings_, MalType* body_, Env* env_)
+    : bindings(bindings_), body(body_), env(env_) { }
+  
+  bool equal(MalType*) const { return false; }
+  std::string print(bool print_readably = true) const;
+
+  MalType* bindings;
+  MalType* body;
+  Env* env;
+};
+template<> inline std::string print_type<MalLambda>() { return "Function"; }
+
 struct MalVector : public MalType {
   MalVector(std::vector<MalType*> e_) : e(std::move(e_)) { }
   bool equal(MalType*) const;
@@ -233,25 +247,5 @@ struct MalHash : public MalType {
   const RBTree<KeyValue> tree;
 };
 template <> inline std::string print_type<MalHash>() { return "Hash"; }
-
-struct ListIter {
-  const MalList* p;
-  ListIter(const MalList* p_) : p(p_) {}
-  MalType* operator*() {
-    return p->car;
-  }
-  ListIter& operator++() {
-    p = p->cdr;
-    return *this;
-  }
-};
-
-inline ListIter begin(const MalList* list) {
-  return list;
-}
-
-inline ListIter end(const MalList* list) {
-  return eol;
-}
 
 #endif

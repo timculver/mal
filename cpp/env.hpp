@@ -48,9 +48,6 @@ public:
     if (too_few_args || too_many_args)
       throw Error{funcall_error(binds->size() - (varargs ? 2 : 0), exprs->size(), varargs)};
   }
-
-
-
   void set(MalSymbol* k, MalType* v) {
     table[k->s] = v;
   }
