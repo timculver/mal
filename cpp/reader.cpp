@@ -27,24 +27,24 @@ string Reader::next() {
 
 
 vector<string> tokenizer(string s) {
-    static regex re(R"/([\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*))/");
-                                                                               
-    vector<string> tokens;
-    smatch match;
-    while (!s.empty() && regex_search(s, match, re)) {
-      if (match.empty())
-        break;
-      string token = match[1];
-      if (token.empty())
-        break;
-      //cout << "token: [" << token << "]\n";
-      if (token[0] != ';') {
-        tokens.push_back(token);
-      }
-      //cout << "suffix: [" << match.suffix() << "]\n";
-      s = match.suffix();
+  static regex re(R"/([\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"|;.*|[^\s\[\]{}('"`,;)]*))/");
+                                                                                 
+  vector<string> tokens;
+  smatch match;
+  while (!s.empty() && regex_search(s, match, re)) {
+    if (match.empty())
+      break;
+    string token = match[1];
+    if (token.empty())
+      break;
+    //cout << "token: [" << token << "]\n";
+    if (token[0] != ';') {
+      tokens.push_back(token);
     }
-    return tokens;
+    //cout << "suffix: [" << match.suffix() << "]\n";
+    s = match.suffix();
+  }
+  return tokens;
 }
 
 MalType* read_atom(Reader& reader) {
@@ -65,22 +65,22 @@ MalType* read_atom(Reader& reader) {
     return nil;
   } else if (reader.peek() == "true") {
     reader.next();
-    return mtrue;
+    return _true;
   } else if (reader.peek() == "false") {
     reader.next();
-    return mfalse;
+    return _false;
   } else if (reader.peek() == "'") {
     reader.next();
-    return new MalList(symbol("quote"), new MalList(read_form(reader), eol));
+    return new MalList(_quote, new MalList(read_form(reader), eol));
   } else if (reader.peek() == "`") {
     reader.next();
-    return new MalList(symbol("quasiquote"), new MalList(read_form(reader), eol));
+    return new MalList(_quasiquote, new MalList(read_form(reader), eol));
   } else if (reader.peek() == "~") {
     reader.next();
-    return new MalList(symbol("unquote"), new MalList(read_form(reader), eol));
+    return new MalList(_unquote, new MalList(read_form(reader), eol));
   } else if (reader.peek() == "~@") {
     reader.next();
-    return new MalList(symbol("splice-unquote"), new MalList(read_form(reader), eol));
+    return new MalList(_splice_unquote, new MalList(read_form(reader), eol));
   } else if (reader.peek() == ")") {
     throw Error{"Unmatched `)`"};
   } else {
@@ -110,10 +110,7 @@ MalType* read_list(Reader& reader) {
   while (reader.peek()[0] != ')')
     e.push_back(read_form(reader));
   reader.next(); // ")"
-  MalList* cons = eol;
-  for (auto iter=e.rbegin(); iter!=e.rend(); ++iter)
-    cons = new MalList(*iter, cons);
-  return cons;
+  return to_list(new MalVector(move(e)));
 }
 
 MalType* read_vector(Reader& reader) {
@@ -147,18 +144,4 @@ MalType* read_str(string s) {
     throw Error{"Extraneous input: `" + reader.next() + "`"};
   return form;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

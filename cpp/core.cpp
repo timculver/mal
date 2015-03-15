@@ -25,29 +25,31 @@ Env* core() {
   // Lists
   env->set(symbol("list"), new MalFn([](MalList* args) { return args; }));
   env->set(symbol("list?"), fn1<MalType>([](MalType* arg) {
-    return boolean(dynamic_cast<MalList*>(arg)); }));
+    return boolean(match<MalList>(arg)); }));
   
   // Sequences: functions that work on both lists and vectors
-  env->set(symbol("empty?"), fn1([](MalType* arg) {
-    if (auto list = dynamic_cast<MalList*>(arg))
+  env->set(symbol("empty?"), fn1([](MalType* arg) -> MalType* {
+    if (arg == nil)
+      return _true;
+    if (auto list = match<MalList>(arg))
       return boolean(list == eol);
-    if (auto vec = dynamic_cast<MalVector*>(arg))
+    if (auto vec = match<MalVector>(arg))
       return boolean(vec->e.empty());
     throw Error{"Expected Sequence"};
   }));
   env->set(symbol("count"), fn1([](MalType* obj) {
-    if (auto list = dynamic_cast<MalList*>(obj))
-      return new MalInt(list->size());
-    if (auto vec = dynamic_cast<MalVector*>(obj))
-      return new MalInt((int)vec->e.size());
     if (obj == nil)
       return new MalInt(0);
+    if (auto list = match<MalList>(obj))
+      return new MalInt(list->size());
+    if (auto vec = match<MalVector>(obj))
+      return new MalInt((int)vec->e.size());
     throw Error{"Expected Sequence"};
   }));
   env->set(symbol("cons"), fn2([](MalType* first, MalType* rest) {
-    if (auto list = dynamic_cast<MalList*>(rest))
+    if (auto list = match<MalList>(rest))
       return cons(first, list);
-    if (auto vec = dynamic_cast<MalVector*>(rest))
+    if (auto vec = match<MalVector>(rest))
       return cons(first, vec);
     throw Error{"Expected Sequence"};
   }));

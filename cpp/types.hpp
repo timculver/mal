@@ -25,8 +25,9 @@ struct MalType {
   virtual ~MalType() { }
   virtual std::string print(bool print_readably = true) const = 0;
 private:
-  // ::equal is the function to call; this is just part of the implementation.
-  virtual bool equal(MalType*) const = 0;
+  // Implementations of equal_impl may safely static_cast to their own type.
+  // They can also assume that the argument is different from `this`.
+  virtual bool equal_impl(MalType*) const = 0;
   friend bool ::equal(MalType*, MalType*);
 };
 template<> inline std::string print_type<MalType>() { return "Object"; }
@@ -39,34 +40,42 @@ T* cast(MalType* form) {
   return ret;
 }
 
+template <typename T>
+T* match(MalType* form) {
+  return dynamic_cast<T*>(form);
+}
+
 // true, false, nil
 
+// `nil` is not the empty list; it is distinct from '(). In sequence contexts
+// it is an empty sequence, to be treated like '() or []. It is also the
+// return value of a function with only side effects.
 struct MalNil : public MalType {
   MalNil() { }
-  bool equal(MalType*) const { return true; }
+  bool equal_impl(MalType*) const { return true; }
   std::string print(bool = true) const { return "nil"; }
 };
 extern MalNil* nil;
 
 struct MalTrue : public MalType {
   MalTrue() { }
-  bool equal(MalType*) const { return true; }
+  bool equal_impl(MalType*) const { return true; }
   std::string print(bool = true) const { return "true"; }
 };
-extern MalTrue* mtrue;
+extern MalTrue* _true;
 
 struct MalFalse : public MalType {
   MalFalse() { }
-  bool equal(MalType*) const { return true; }
+  bool equal_impl(MalType*) const { return true; }
   std::string print(bool = true) const { return "false"; }
 };
-extern MalFalse* mfalse;
+extern MalFalse* _false;
 
 inline MalType* boolean(bool b) {
   if (b)
-    return mtrue;
+    return _true;
   else
-    return mfalse;
+    return _false;
 }
 
 // Symbol, string, int
@@ -76,9 +85,7 @@ private:
   MalSymbol(std::string s_) : s(std::move(s_)) { }
   friend MalSymbol* symbol(const std::string&);
 public:
-  bool equal(MalType*) const {
-    return false;
-  }
+  bool equal_impl(MalType*) const { return false; }
   std::string print(bool print_readably = true) const;
   
   const std::string s;
@@ -86,11 +93,16 @@ public:
 template<> inline std::string print_type<MalSymbol>() { return "Symbol"; }
 
 MalSymbol* symbol(const std::string&);
+extern MalSymbol* _quote;
+extern MalSymbol* _quasiquote;
+extern MalSymbol* _unquote;
+extern MalSymbol* _splice_unquote;
+
 
 struct MalString : public MalType {
   MalString(std::string(s_)) : s(std::move(s_)) { }
-  bool equal(MalType* other) const {
-    return s == dynamic_cast<MalString*>(other)->s;
+  bool equal_impl(MalType* other) const {
+    return s == static_cast<MalString*>(other)->s;
   }
   std::string print(bool print_readably = true) const;
   
@@ -102,10 +114,11 @@ struct MalString : public MalType {
 };
 template<> inline std::string print_type<MalString>() { return "String"; }
 
+
 struct MalInt : public MalType {
   MalInt(int v_) : v(v_) { }
-  bool equal(MalType* other) const {
-    return v == dynamic_cast<MalInt*>(other)->v;
+  bool equal_impl(MalType* other) const {
+    return v == static_cast<MalInt*>(other)->v;
   }
   std::string print(bool = true) const;
   
@@ -119,7 +132,7 @@ struct MalFn : public MalType {
   template <typename F>
   MalFn(F f_) : f(std::move(f_)) { }
 
-  bool equal(MalType*) const { return false; }
+  bool equal_impl(MalType*) const { return false; }
   std::string print(bool print_readably = true) const;
   const std::function<MalType*(MalList*)> f;
 };
@@ -129,7 +142,7 @@ struct MalLambda : public MalType {
   MalLambda(MalType* bindings_, MalType* body_, Env* env_)
     : bindings(bindings_), body(body_), env(env_) { }
   
-  bool equal(MalType*) const { return false; }
+  bool equal_impl(MalType*) const { return false; }
   std::string print(bool print_readably = true) const;
 
   MalType* bindings;
@@ -145,7 +158,7 @@ extern MalEol* eol;
 
 struct MalList : public MalType {
   MalList(MalType* car_, MalList* cdr_) : car(car_), cdr(cdr_) { }
-  bool equal(MalType*) const;
+  bool equal_impl(MalType*) const;
   std::string print(bool print_readably = true) const;
 
   template <typename T = MalType>
@@ -181,11 +194,11 @@ MalList* concat(MalList* lists);
 // Concatenate two lists
 MalList* concat2(MalList* a, MalList* b);
 
+// End-of-list. Not a Clojure/Mal concept--it is my implementation of
+// an empty list.
 struct MalEol : public MalList {
   MalEol() : MalList(nullptr, nullptr) { }
-  bool equal(MalType*) const { return true; }
 };
-
 
 template <typename F> void MalList::for_each(F&& f) {
   for (auto p = this; p != eol; p = p->cdr)
@@ -207,7 +220,7 @@ MalType* reduce(F&& f, MalList* list) {
 
 struct MalVector : public MalType {
   MalVector(std::vector<MalType*> e_) : e(std::move(e_)) { }
-  bool equal(MalType*) const;
+  bool equal_impl(MalType*) const;
   std::string print(bool print_readably = true) const;
   
   template <typename T = MalType>
@@ -284,7 +297,7 @@ struct KeyValue {
 struct MalHash : public MalType {
   MalHash() { };
   MalHash(RBTree<KeyValue> tree_) : tree(std::move(tree_)) { }
-  bool equal(MalType*) const { throw Error{"Unimplemented"}; }
+  bool equal_impl(MalType*) const { throw Error{"Unimplemented"}; }
   std::string print(bool) const;
   
   MalHash* assoc(MalType* key, MalType* value);

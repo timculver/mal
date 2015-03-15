@@ -6,8 +6,8 @@
 
 using namespace std;
 
-bool MalVector::equal(MalType* other_object) const {
-  auto other = dynamic_cast<MalVector*>(other_object);
+bool MalVector::equal_impl(MalType* other_object) const {
+  auto other = static_cast<MalVector*>(other_object);
   if (e.size() != other->e.size())
     return false;
   for (int ii=0; ii<e.size(); ii++)
@@ -31,8 +31,8 @@ string MalVector::print(bool print_readably) const {
 
 MalEol* eol = new MalEol();
 MalNil* nil = new MalNil();
-MalTrue* mtrue = new MalTrue();
-MalFalse* mfalse = new MalFalse();
+MalTrue* _true = new MalTrue();
+MalFalse* _false = new MalFalse();
 
 string MalList::print(bool print_readably) const {
   stringstream s;
@@ -55,7 +55,7 @@ int MalList::size() {
   return s;
 }
 
-bool MalList::equal(MalType* other_obj) const {
+bool MalList::equal_impl(MalType* other_obj) const {
   MalList* other = static_cast<MalList*>(other_obj);
   // The typeid check has already taken care of all eol cases.
   return ::equal(car, other->car) && ::equal(cdr, other->cdr);
@@ -72,7 +72,7 @@ MalList* concat(MalList* sequences) {
     return eol;
   auto first = car(sequences);
   auto rest = cdr(sequences);
-  if (auto vec = dynamic_cast<MalVector*>(first))
+  if (auto vec = match<MalVector>(first))
     return concat2(to_list(vec), concat(rest));
   return concat2(cast<MalList>(first), concat(rest));
 }
@@ -91,7 +91,7 @@ string MalHash::print(bool print_readably) const {
 }
 
 MalHash* MalHash::assoc(MalType* key, MalType* value) {
-  if (!dynamic_cast<MalString*>(key) && !dynamic_cast<MalSymbol*>(key))
+  if (!match<MalString>(key) && !match<MalSymbol>(key))
     throw Error{"Expected String or Symbol"};
   if (tree.member(KeyValue{key, value}))
     return this;
@@ -117,6 +117,10 @@ MalSymbol* symbol(const string& s) {
   table[s] = sym;
   return sym;
 }
+MalSymbol* _quote = symbol("quote");
+MalSymbol* _quasiquote = symbol("quasiquote");
+MalSymbol* _unquote = symbol("unquote");
+MalSymbol* _splice_unquote = symbol("splice-unquote");
 
 string MalString::print(bool print_readably) const {
   return print_string(s, print_readably);
@@ -173,7 +177,7 @@ bool equal(MalType* a, MalType* b) {
     return true;
   // Simple single-dispatch cases
   if (typeid(*a) == typeid(*b))
-    return a->equal(b);
+    return a->equal_impl(b);
   // Double-dispatch cases
   if (dynamic_cast<MalList*>(a) && dynamic_cast<MalVector*>(b))
     return equal_list_vector(static_cast<MalList*>(a), static_cast<MalVector*>(b));

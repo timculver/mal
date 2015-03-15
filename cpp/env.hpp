@@ -13,9 +13,9 @@ class Env {
 public:
   Env(Env* outer_ = nullptr, MalType* binds = nullptr, MalList* exprs = nullptr)
     : outer(outer_) {
-    if (auto binds_list = dynamic_cast<MalList*>(binds))
+    if (auto binds_list = match<MalList>(binds))
       set_bindings(binds_list, exprs);
-    else if (auto binds_vec = dynamic_cast<MalVector*>(binds))
+    else if (auto binds_vec = match<MalVector>(binds))
       set_bindings(binds_vec, exprs);
     else if (binds)
       throw Error{"Expected Seqence"};
