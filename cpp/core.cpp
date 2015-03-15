@@ -22,10 +22,12 @@ Env* core() {
   env->set(symbol("/"), fn2<MalInt, MalInt>([](MalInt* a, MalInt* b) {
     return new MalInt(a->v / b->v); }));
 
-  // Sequence utilities
+  // Lists
   env->set(symbol("list"), new MalFn([](MalList* args) { return args; }));
   env->set(symbol("list?"), fn1<MalType>([](MalType* arg) {
     return boolean(dynamic_cast<MalList*>(arg)); }));
+  
+  // Sequences: functions that work on both lists and vectors
   env->set(symbol("empty?"), fn1([](MalType* arg) {
     if (auto list = dynamic_cast<MalList*>(arg))
       return boolean(list == eol);
@@ -42,6 +44,17 @@ Env* core() {
       return new MalInt(0);
     throw Error{"Expected Sequence"};
   }));
+  env->set(symbol("cons"), fn2([](MalType* first, MalType* rest) {
+    if (auto list = dynamic_cast<MalList*>(rest))
+      return cons(first, list);
+    if (auto vec = dynamic_cast<MalVector*>(rest))
+      return cons(first, vec);
+    throw Error{"Expected Sequence"};
+  }));
+  env->set(symbol("concat"), new MalFn([](MalList* sequences) {
+    return concat(sequences); }));
+
+  // Hashes
   env->set(symbol("assoc"), fn3<MalHash, MalType, MalType>([](MalHash* hash, MalType* key, MalType* value) {
     return hash->assoc(key, value);
   }));

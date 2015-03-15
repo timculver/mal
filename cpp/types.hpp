@@ -9,6 +9,7 @@
 #include "RBTree.h"
 
 struct MalType;
+struct MalList;
 class Env;
 
 struct Error {
@@ -38,43 +39,7 @@ T* cast(MalType* form) {
   return ret;
 }
 
-struct MalEol;
-extern MalEol* eol;
-
-struct MalList : public MalType {
-  MalList(MalType* car_, MalList* cdr_) : car(car_), cdr(cdr_) { }
-  bool equal(MalType*) const;
-  std::string print(bool print_readably = true) const;
-
-  template <typename T = MalType>
-  T* get(int ii) {
-    MalList* p = this;
-    while (ii-- > 0)
-      p = p->cdr;
-    return cast<T>(p->car);
-  }
-  int size();
-  template <typename F> void for_each(F&& f);
-  
-  MalType *car;
-  MalList *cdr;
-};
-template <> inline std::string print_type<MalList>() { return "List"; }
-
-inline MalList* cdr(MalList* list) {
-  return list->cdr;
-}
-
-struct MalEol : public MalList {
-  MalEol() : MalList(nullptr, nullptr) { }
-  bool equal(MalType*) const { return true; }
-};
-
-
-template <typename F> void MalList::for_each(F&& f) {
-  for (auto p = this; p != eol; p = p->cdr)
-    f(p->car);
-}
+// true, false, nil
 
 struct MalNil : public MalType {
   MalNil() { }
@@ -103,6 +68,8 @@ inline MalType* boolean(bool b) {
   else
     return mfalse;
 }
+
+// Symbol, string, int
 
 struct MalSymbol : public MalType {
 private:
@@ -146,6 +113,8 @@ struct MalInt : public MalType {
 };
 template<> inline std::string print_type<MalInt>() { return "Int"; }
 
+// Functions (native and lambda)
+
 struct MalFn : public MalType {
   template <typename F>
   MalFn(F f_) : f(std::move(f_)) { }
@@ -155,21 +124,6 @@ struct MalFn : public MalType {
   const std::function<MalType*(MalList*)> f;
 };
 template<> inline std::string print_type<MalFn>() { return "Function"; }
-
-// Strongly-typed function definitions use these templates to generate type-checking code
-// and dispatch to a C++ function with the correct types.
-template <typename T1 = MalType, typename F>
-MalFn* fn1(F f) {
-  return new MalFn([=](MalList* args) { return f(args->get<T1>(0)); });
-}
-template <typename T1 = MalType, typename T2 = MalType, typename F>
-MalFn* fn2(F f) {
-  return new MalFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1)); });
-}
-template <typename T1 = MalType, typename T2 = MalType, typename T3 = MalType, typename F>
-MalFn* fn3(F f) {
-  return new MalFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1), args->get<T3>(2)); });
-}
 
 struct MalLambda : public MalType {
   MalLambda(MalType* bindings_, MalType* body_, Env* env_)
@@ -183,6 +137,73 @@ struct MalLambda : public MalType {
   Env* env;
 };
 template<> inline std::string print_type<MalLambda>() { return "Function"; }
+
+// List
+
+struct MalEol;
+extern MalEol* eol;
+
+struct MalList : public MalType {
+  MalList(MalType* car_, MalList* cdr_) : car(car_), cdr(cdr_) { }
+  bool equal(MalType*) const;
+  std::string print(bool print_readably = true) const;
+
+  template <typename T = MalType>
+  T* get(int ii) {
+    MalList* p = this;
+    while (ii-- > 0)
+      p = p->cdr;
+    return cast<T>(p->car);
+  }
+  int size();
+  template <typename F> void for_each(F&& f);
+  
+  MalType *car;
+  MalList *cdr;
+};
+template <> inline std::string print_type<MalList>() { return "List"; }
+
+inline MalType* car(MalList* list) {
+  return list->car;
+}
+
+inline MalList* cdr(MalList* list) {
+  return list->cdr;
+}
+
+inline MalList* cons(MalType* first, MalList* rest) {
+  return new MalList(first, rest);
+}
+
+// Concatenate a list of lists
+MalList* concat(MalList* lists);
+
+// Concatenate two lists
+MalList* concat2(MalList* a, MalList* b);
+
+struct MalEol : public MalList {
+  MalEol() : MalList(nullptr, nullptr) { }
+  bool equal(MalType*) const { return true; }
+};
+
+
+template <typename F> void MalList::for_each(F&& f) {
+  for (auto p = this; p != eol; p = p->cdr)
+    f(p->car);
+}
+
+template <typename F>
+MalType* reduce(F&& f, MalList* list) {
+  std::vector<MalType*> v;
+  for (auto p = list; p != eol; p = p->cdr)
+    v.push_back(p->car);
+  MalList* q = eol;
+  for (auto iter=v.rbegin(); iter!=v.rend(); iter++)
+    q = f(*iter, q);
+  return q;
+}
+
+// Vector
 
 struct MalVector : public MalType {
   MalVector(std::vector<MalType*> e_) : e(std::move(e_)) { }
@@ -211,6 +232,17 @@ struct MalVector : public MalType {
 };
 template<> inline std::string print_type<MalVector>() { return "List"; }
 
+inline MalList* to_list(MalVector* vec) {
+  MalList* list = eol;
+  for (auto iter = vec->e.rbegin(); iter != vec->e.rend(); ++iter)
+    list = cons(*iter, list);
+  return list;
+}
+
+inline MalList* cons(MalType* head, MalVector* vec) {
+  return cons(head, to_list(vec));
+}
+
 inline MalVector* cdr(MalVector* list) {
   list->get(0);
   std::vector<MalType*> ret;
@@ -219,6 +251,18 @@ inline MalVector* cdr(MalVector* list) {
     ret.push_back(list->e[ii]);
   return new MalVector(ret);
 }
+
+template <typename F>
+MalType* reduce(F&& f, MalVector* vec, MalType* base) {
+  std::vector<MalType*> v;
+  for (auto obj : vec->e) {
+    base = f(obj, base);
+    v.push_back(base);
+  }
+  return new MalVector(move(v));
+}
+
+// Hash
 
 struct KeyValue {
   MalType* key; // must be string or symbol for now
@@ -248,5 +292,23 @@ struct MalHash : public MalType {
   const RBTree<KeyValue> tree;
 };
 template <> inline std::string print_type<MalHash>() { return "Hash"; }
+
+// Utilities
+
+// Strongly-typed function definitions use these templates to generate type-checking code
+// and dispatch to a C++ function with the correct types.
+template <typename T1 = MalType, typename F>
+MalFn* fn1(F f) {
+  return new MalFn([=](MalList* args) { return f(args->get<T1>(0)); });
+}
+template <typename T1 = MalType, typename T2 = MalType, typename F>
+MalFn* fn2(F f) {
+  return new MalFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1)); });
+}
+template <typename T1 = MalType, typename T2 = MalType, typename T3 = MalType, typename F>
+MalFn* fn3(F f) {
+  return new MalFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1), args->get<T3>(2)); });
+}
+
 
 #endif

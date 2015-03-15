@@ -15,9 +15,8 @@ MalType* eval_ast(MalType* form, Env* env) {
   }
   if (auto list = dynamic_cast<MalList*>(form)) {
     vector<MalType*> v;
-    for (auto p=list; p!=eol; p=p->cdr) {
+    for (auto p=list; p!=eol; p=p->cdr)
       v.push_back(EVAL(p->car, env));
-    }
     MalList* ret = eol;
     for (auto iter=v.rbegin(); iter!=v.rend(); iter++)
       ret = new MalList(*iter, ret);
@@ -39,6 +38,27 @@ MalType* eval_ast(MalType* form, Env* env) {
   return form;
 }
 
+MalType* try_unwrap(MalSymbol* sym, MalType* form) {
+  if (auto list = dynamic_cast<MalList*>(form))
+    if (list != eol && list->cdr != eol && list->car == sym)
+      return list->cdr->car;
+  return nullptr;
+}
+
+MalType* quasiquote(MalType* ast, Env* env) {
+  if (auto unquoted = try_unwrap(symbol("unquote"), ast))
+    return EVAL(unquoted, env);
+  if (auto list = dynamic_cast<MalList*>(ast))
+    return reduce([env](MalType* first, MalList* rest) {
+      if (auto unquoted = try_unwrap(symbol("unquote"), first))
+        return cons(EVAL(unquoted, env), rest);
+      if (auto splice_unquoted = try_unwrap(symbol("splice-unquote"), first))
+        return concat2(cast<MalList>(EVAL(splice_unquoted, env)), rest);
+      return cons(first, rest);
+    }, list);
+  return ast;
+}
+
 MalType* EVAL(MalType* form, Env* env) {
   while (true) {
     if (MalList* list = dynamic_cast<MalList*>(form)) {
@@ -47,8 +67,13 @@ MalType* EVAL(MalType* form, Env* env) {
       // Specials
       auto symbol = dynamic_cast<MalSymbol*>(head);
       if (symbol) {
-        if (symbol->s == "quote") {
+        if (symbol->s == "quote") { // these string literals should be static symbols
           return list->get(1);
+        } else if (symbol->s == "quasiquote") {
+          return quasiquote(list->get(1), env);
+        } else if (symbol == ::symbol("unquote")) {
+          form = list->get(1);
+          continue;
         } else if (symbol->s == "def!") {
           auto name = list->get<MalSymbol>(1);
           auto value = EVAL(list->get(2), env);

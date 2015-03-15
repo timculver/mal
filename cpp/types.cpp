@@ -61,6 +61,22 @@ bool MalList::equal(MalType* other_obj) const {
   return ::equal(car, other->car) && ::equal(cdr, other->cdr);
 }
 
+MalList* concat2(MalList* a, MalList* b) {
+  if (a == eol)
+    return b;
+  return cons(car(a), concat2(cdr(a), b));
+}
+
+MalList* concat(MalList* sequences) {
+  if (sequences == eol)
+    return eol;
+  auto first = car(sequences);
+  auto rest = cdr(sequences);
+  if (auto vec = dynamic_cast<MalVector*>(first))
+    return concat2(to_list(vec), concat(rest));
+  return concat2(cast<MalList>(first), concat(rest));
+}
+
 string MalHash::print(bool print_readably) const {
   stringstream s;
   s << '{';
