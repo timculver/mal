@@ -52,6 +52,8 @@ MalType* quasiquote(MalType* ast, Env* env) {
         return concat2(cast<MalList>(EVAL(splice_unquoted, env)), rest);
       return cons(first, rest);
     }, list);
+  if (auto vec = match<MalVector>(ast))
+    return quasiquote(to_list(vec), env);
   return ast;
 }
 
