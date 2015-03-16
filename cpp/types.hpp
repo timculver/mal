@@ -10,6 +10,7 @@
 
 struct MalType;
 struct MalList;
+struct MalSeq;
 class Env;
 
 struct Error {
@@ -45,17 +46,7 @@ T* match(MalType* form) {
   return dynamic_cast<T*>(form);
 }
 
-// true, false, nil
-
-// `nil` is not the empty list; it is distinct from '(). In sequence contexts
-// it is an empty sequence, to be treated like '() or []. It is also the
-// return value of a function with only side effects.
-struct MalNil : public MalType {
-  MalNil() { }
-  bool equal_impl(MalType*) const { return true; }
-  std::string print(bool = true) const { return "nil"; }
-};
-extern MalNil* nil;
+// true, false
 
 struct MalTrue : public MalType {
   MalTrue() { }
@@ -139,29 +130,73 @@ struct MalFn : public MalType {
 template<> inline std::string print_type<MalFn>() { return "Function"; }
 
 struct MalLambda : public MalType {
-  MalLambda(MalType* bindings_, MalType* body_, Env* env_, bool is_macro_ = false)
+  MalLambda(MalSeq* bindings_, MalType* body_, Env* env_, bool is_macro_ = false)
     : bindings(bindings_), body(body_), env(env_), is_macro(is_macro_) { }
   
   bool equal_impl(MalType*) const { return false; }
   std::string print(bool print_readably = true) const;
 
-  MalType* bindings;
+  MalSeq* bindings;
   MalType* body;
   Env* env;
   bool is_macro;
 };
 template<> inline std::string print_type<MalLambda>() { return "Lambda/Macro"; }
 
+// Sequence
+
+struct MalSeq : public MalType {
+  virtual bool empty() = 0;
+  virtual int count() = 0;
+  virtual MalType* first() = 0;
+  virtual MalSeq* rest() = 0;
+  virtual MalType* nth(int n) = 0;
+};
+template <> inline std::string print_type<MalSeq>() { return "Sequence"; }
+
+// Nil (empty sequence)
+
+// `nil` is not the empty list; it is distinct from '(). In sequence contexts
+// it is an empty sequence, to be treated like '() or []. It is also the
+// return value of a function with only side effects.
+struct MalNil : public MalSeq {
+  MalNil() { }
+  
+  // MalType overrides
+  bool equal_impl(MalType*) const { return true; }
+  
+  // MalSeq overrides
+  bool empty() { return true; }
+  int count() { return 0; }
+  MalType* first() { return this; }
+  MalSeq* rest() { return this; }
+  MalType* nth(int n) { throw Error{"Empty Sequence"}; }
+  
+  std::string print(bool = true) const { return "nil"; }
+};
+extern MalNil* nil;
+
+
 // List
 
 struct MalEol;
 extern MalEol* eol;
 
-struct MalList : public MalType {
+struct MalList : public MalSeq {
   MalList(MalType* car_, MalList* cdr_) : car(car_), cdr(cdr_) { }
+  
+  // MalType overrides
   bool equal_impl(MalType*) const;
   std::string print(bool print_readably = true) const;
 
+  // MalSeq overrides
+  bool empty() { return false; }
+  int count() { return size(); }
+  MalType* first() { return get(0); }
+  MalSeq* rest() { return cdr; }
+  MalType* nth(int n) { return get(n); }
+  
+  // Methods
   template <typename T = MalType> T* get(int ii);
   int size();
   template <typename F> void for_each(F&& f);
@@ -183,16 +218,23 @@ inline MalList* cons(MalType* first, MalList* rest) {
   return new MalList(first, rest);
 }
 
-// Concatenate a list of lists
+// Concatenate a list of sequences.
 MalList* concat(MalList* lists);
 
-// Concatenate two lists
+// Concatenate two lists.
 MalList* concat2(MalList* a, MalList* b);
 
 // End-of-list. Not a Clojure/Mal concept--it is my implementation of
 // an empty list.
 struct MalEol : public MalList {
   MalEol() : MalList(nullptr, nullptr) { }
+
+  // MalSeq overrides
+  bool empty() { return true; }
+  int count() { return 0; }
+  MalType* first() { return nil; }
+  MalSeq* rest() { return this; }
+  MalType* nth(int) { throw Error{"index out of range"}; }
 };
 
 template <typename T>
@@ -223,11 +265,21 @@ MalType* reduce(F&& f, MalList* list) {
 
 // Vector
 
-struct MalVector : public MalType {
+struct MalVector : public MalSeq {
   MalVector(std::vector<MalType*> e_) : e(std::move(e_)) { }
+  
+  // MalType overrides
   bool equal_impl(MalType*) const;
   std::string print(bool print_readably = true) const;
   
+  // MalSeq overrides
+  bool empty() { return e.empty(); }
+  int count() { return (int)e.size(); }
+  MalType* first() { return e.empty() ? nil : get(0); }
+  MalSeq* rest();
+  MalType* nth(int n) { return get(n); }
+  
+  // Methods
   template <typename T = MalType>
   T* get(int ii) {
     if (ii >= e.size())
@@ -255,10 +307,6 @@ inline MalList* to_list(MalVector* vec) {
   for (auto iter = vec->e.rbegin(); iter != vec->e.rend(); ++iter)
     list = cons(*iter, list);
   return list;
-}
-
-inline MalList* cons(MalType* head, MalVector* vec) {
-  return cons(head, to_list(vec));
 }
 
 inline MalList* list(std::initializer_list<MalType*> init) {
@@ -317,6 +365,14 @@ struct MalHash : public MalType {
 template <> inline std::string print_type<MalHash>() { return "Hash"; }
 
 // Utilities
+
+template <typename F> void for_each(MalSeq* seq, F&& f) {
+  if (auto list = match<MalList>(seq))
+    return list->for_each(f);
+  if (auto vec = match<MalVector>(seq))
+    return vec->for_each(f);
+  throw Error{"Expected Sequence"};
+}
 
 // Strongly-typed function definitions use these templates to generate type-checking code
 // and dispatch to a C++ function with the correct types.

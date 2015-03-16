@@ -63,10 +63,8 @@ MalType* macroexpand(MalType* ast, Env* env) {
 }
 
 bool is_pair(MalType* ast) {
-  if (match<MalList>(ast))
-    return ast != eol;
-  if (auto vec = match<MalVector>(ast))
-    return !vec->e.empty();
+  if (auto seq = match<MalSeq>(ast))
+    return !seq->empty();
   return false;
 }
 
@@ -75,21 +73,12 @@ MalType* quasiquote(MalType* ast) {
   static auto _cons = symbol("cons");
   if (!is_pair(ast))
     return ::list({_quote, ast});
-  if (auto list = match<MalList>(ast)) {
-    if (car(list) == _unquote)
-      return list->get(1);
-    if (auto splice_unquoted = match_wrapped(_splice_unquote, car(list)))
-      return ::list({_concat, splice_unquoted, quasiquote(cdr(list))});
-    return ::list({_cons, quasiquote(list->get(0)), quasiquote(cdr(list))});
-  }
-  if (auto vec = match<MalVector>(ast)) {
-    if (vec->get(0) == _unquote)
-      return vec->get(1);
-    if (auto splice_unquoted = match_wrapped(_splice_unquote, vec->get(0)))
-      return ::list({_concat, splice_unquoted, quasiquote(cdr(vec))});
-    return ::list({_cons, quasiquote(vec->get(0)), quasiquote(cdr(vec))});
-  }
-  throw Error{"Expected Sequence"};
+  auto seq = cast<MalSeq>(ast);
+  if (seq->first() == _unquote)
+    return seq->nth(1);
+  if (auto splice_unquoted = match_wrapped(_splice_unquote, seq->first()))
+    return ::list({_concat, splice_unquoted, quasiquote(seq->rest())});
+  return ::list({_cons, quasiquote(seq->first()), quasiquote(seq->rest())});
 }
 
 MalType* EVAL(MalType* form, Env* env) {
@@ -112,7 +101,6 @@ MalType* EVAL(MalType* form, Env* env) {
           return rest->get(0);
         } else if (symbol == _quasiquote) {
           form = quasiquote(rest->get(0));
-          //cerr << "after quasiquote: " << form->print() << endl;
           continue;
         } else if (symbol == _unquote) {
           form = rest->get(0);
@@ -169,7 +157,7 @@ MalType* EVAL(MalType* form, Env* env) {
           }
           continue;
         } else if (symbol == _fn) {
-          auto bindings = rest->get(0);
+          auto bindings = rest->get<MalSeq>(0);
           auto body = rest->get(1);
           if (rest->size() > 2)
             throw Error{"Too many arguments for " + _fn->s};

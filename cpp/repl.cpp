@@ -22,6 +22,7 @@ string rep(string s, Env* env) {
 
 int main(int argc, char* argv[]) {
   Env* repl_env = core();
+  rep("(def! *host-language* \"c++\")", repl_env);
   rep("(def! not (fn* (a) (if a false true)))", repl_env);
   repl_env->set(symbol("eval"), fn1([repl_env](MalType* form) { return EVAL(form, repl_env); }));
   rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))", repl_env);
@@ -36,6 +37,8 @@ int main(int argc, char* argv[]) {
   for (int ii = argc - 1; ii >= 2; ii--)
     argv_list = new MalList(new MalString(string(argv[ii])), argv_list);
   repl_env->set(symbol("*ARGV*"), argv_list);
+  
+  rep("(println (str \"Mal [\" *host-language* \"]\"))", repl_env);
   
   while (!cin.eof()) {
     cout << "user> ";

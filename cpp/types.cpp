@@ -29,6 +29,13 @@ string MalVector::print(bool print_readably) const {
   return s.str();
 }
 
+MalSeq* MalVector::rest() {
+  if (e.empty())
+    return eol;
+  else
+    return cdr(to_list(this));
+}
+
 MalEol* eol = new MalEol();
 MalNil* nil = new MalNil();
 MalTrue* _true = new MalTrue();
@@ -148,7 +155,7 @@ string MalFn::print(bool) const {
 }
 
 string MalLambda::print(bool) const {
-  return "#<lambda>";
+  return is_macro ? "#<macro>" : "#<lambda>";
 }
 
 bool equal(MalType* a, MalType* b);

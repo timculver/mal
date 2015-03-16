@@ -28,64 +28,25 @@ Env* core() {
     return boolean(match<MalList>(arg)); }));
   
   // Sequences: functions that work on both lists and vectors
-  env->set(symbol("empty?"), fn1([](MalType* arg) -> MalType* {
-    if (arg == nil)
-      return _true;
-    if (auto list = match<MalList>(arg))
-      return boolean(list == eol);
-    if (auto vec = match<MalVector>(arg))
-      return boolean(vec->e.empty());
-    throw Error{"Expected Sequence"};
-  }));
-  env->set(symbol("nth"), fn2<MalType, MalInt>([](MalType* obj, MalInt* n) {
-    if (obj == nil)
-      throw Error{"Expected List or Vector"};
-    if (auto list = match<MalList>(obj))
-      return list->get(n->v);
-    if (auto vec = match<MalVector>(obj))
-      return vec->get(n->v);
-    throw Error{"Expected Sequence"};
-  }));
-  env->set(symbol("count"), fn1([](MalType* obj) {
-    if (obj == nil)
-      return new MalInt(0);
-    if (auto list = match<MalList>(obj))
-      return new MalInt(list->size());
-    if (auto vec = match<MalVector>(obj))
-      return new MalInt((int)vec->e.size());
-    throw Error{"Expected Sequence"};
-  }));
+  env->set(symbol("empty?"), fn1<MalSeq>([](MalSeq* seq) -> MalType* {
+    return boolean(seq->empty()); }));
+  env->set(symbol("nth"), fn2<MalSeq, MalInt>([](MalSeq* seq, MalInt* n) {
+    return seq->nth(n->v); }));
+  env->set(symbol("count"), fn1<MalSeq>([](MalSeq* seq) {
+    return new MalInt(seq->count()); }));
   env->set(symbol("cons"), fn2([](MalType* first, MalType* rest) {
     if (auto list = match<MalList>(rest))
       return cons(first, list);
     if (auto vec = match<MalVector>(rest))
-      return cons(first, vec);
-    throw Error{"Expected Sequence"};
+      return cons(first, to_list(vec));
+    return ::list({first, rest});
   }));
   env->set(symbol("concat"), new MalFn([](MalList* sequences) {
     return concat(sequences); }));
-  env->set(symbol("first"), fn1([](MalType* obj) -> MalType* {
-    if (obj == nil)
-      return nil;
-    if (auto list = match<MalList>(obj))
-      return list == eol ? nil : car(list);
-    if (auto vec = match<MalVector>(obj))
-      return vec->e.empty() ? nil : vec->get(0);
-    throw Error{"Expected Sequence"};
-  }));
-  env->set(symbol("rest"), fn1([](MalType* obj) -> MalType* {
-    if (obj == nil || obj == eol)
-      return obj;
-    if (auto list = match<MalList>(obj))
-      return cdr(list);
-    if (auto vec = match<MalVector>(obj)) {
-      if (vec->e.empty())
-        return eol;
-      else
-        return cdr(to_list(vec));
-    }
-    throw Error{"Expected Sequence"};
-  }));
+  env->set(symbol("first"), fn1<MalSeq>([](MalSeq* seq) -> MalType* {
+    return seq->first(); }));
+  env->set(symbol("rest"), fn1<MalSeq>([](MalSeq* seq) -> MalSeq* {
+    return seq->rest(); }));
 
   // Hashes
   env->set(symbol("assoc"), fn3<MalHash, MalType, MalType>([](MalHash* hash, MalType* key, MalType* value) {

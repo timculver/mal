@@ -11,42 +11,34 @@ using namespace std;
 
 class Env {
 public:
-  Env(Env* outer_ = nullptr, MalType* binds = nullptr, MalList* exprs = nullptr)
-    : outer(outer_) {
-    if (auto binds_list = match<MalList>(binds))
-      set_bindings(binds_list, exprs);
-    else if (auto binds_vec = match<MalVector>(binds))
-      set_bindings(binds_vec, exprs);
-    else if (binds)
-      throw Error{"Expected Seqence"};
-  }
-  
-  template <typename Seq>
-  void set_bindings(Seq& binds, MalList* exprs) {
+  Env(Env* outer_ = nullptr, MalSeq* binds = nullptr, MalList* exprs = nullptr)
+      : outer(outer_) {
     static MalSymbol* splat = ::symbol("&");
-    auto q = exprs;
-    bool varargs = false, too_few_args = false;
-    binds->for_each([&](MalType* bind) {
-      auto symbol = cast<MalSymbol>(bind);
-      if (varargs) {
-        set(symbol, q);
-        return;
-      }
-      if (symbol == splat) {
-        varargs = true;
-        return;
-      }
-      if (q == eol) {
-        // Keep going; we might find a "&" which should result in a different error message.
-        too_few_args = true;
-        return;
-      }
-      set(symbol, q->car);
-      q = q->cdr;
-    });
-    bool too_many_args = !varargs && q != eol;
-    if (too_few_args || too_many_args)
-      throw Error{funcall_error(binds->size() - (varargs ? 2 : 0), exprs->size(), varargs)};
+    if (binds) {
+      auto q = exprs;
+      bool varargs = false, too_few_args = false;
+      for_each(binds, [&](MalType* bind) {
+        auto symbol = cast<MalSymbol>(bind);
+        if (varargs) {
+          set(symbol, q);
+          return;
+        }
+        if (symbol == splat) {
+          varargs = true;
+          return;
+        }
+        if (q == eol) {
+          // Keep going; we might find a "&" which should result in a different error message.
+          too_few_args = true;
+          return;
+        }
+        set(symbol, q->car);
+        q = q->cdr;
+      });
+      bool too_many_args = !varargs && q != eol;
+      if (too_few_args || too_many_args)
+        throw Error{funcall_error(binds->count() - (varargs ? 2 : 0), exprs->size(), varargs)};
+    }
   }
   void set(MalSymbol* k, MalType* v) {
     table[k->s] = v;
