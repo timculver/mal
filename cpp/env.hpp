@@ -58,9 +58,15 @@ public:
       return outer ? outer->find(k) : nullptr;
   }
   MalType* get(MalSymbol* k) {
+    auto result = lookup(k);
+    if (result == nullptr)
+      throw Error{"Not found: `" + k->s + "`"};
+    return result;
+  }
+  MalType* lookup(MalSymbol* k) {
     Env* env = find(k);
     if (env == nullptr)
-      throw Error{"Not found: `" + k->s + "`"};
+      return nullptr;
     return env->table[k->s];
   }
 

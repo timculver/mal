@@ -139,8 +139,8 @@ struct MalFn : public MalType {
 template<> inline std::string print_type<MalFn>() { return "Function"; }
 
 struct MalLambda : public MalType {
-  MalLambda(MalType* bindings_, MalType* body_, Env* env_)
-    : bindings(bindings_), body(body_), env(env_) { }
+  MalLambda(MalType* bindings_, MalType* body_, Env* env_, bool is_macro_ = false)
+    : bindings(bindings_), body(body_), env(env_), is_macro(is_macro_) { }
   
   bool equal_impl(MalType*) const { return false; }
   std::string print(bool print_readably = true) const;
@@ -148,8 +148,9 @@ struct MalLambda : public MalType {
   MalType* bindings;
   MalType* body;
   Env* env;
+  bool is_macro;
 };
-template<> inline std::string print_type<MalLambda>() { return "Function"; }
+template<> inline std::string print_type<MalLambda>() { return "Lambda/Macro"; }
 
 // List
 
@@ -161,13 +162,7 @@ struct MalList : public MalType {
   bool equal_impl(MalType*) const;
   std::string print(bool print_readably = true) const;
 
-  template <typename T = MalType>
-  T* get(int ii) {
-    MalList* p = this;
-    while (ii-- > 0)
-      p = p->cdr;
-    return cast<T>(p->car);
-  }
+  template <typename T = MalType> T* get(int ii);
   int size();
   template <typename F> void for_each(F&& f);
   
@@ -199,6 +194,16 @@ MalList* concat2(MalList* a, MalList* b);
 struct MalEol : public MalList {
   MalEol() : MalList(nullptr, nullptr) { }
 };
+
+template <typename T>
+T* MalList::get(int ii) {
+  MalList* p = this;
+  while (ii-- > 0 && p != eol)
+    p = p->cdr;
+  if (p == eol)
+    throw Error{"Index out of range"};
+  return cast<T>(p->car);
+}
 
 template <typename F> void MalList::for_each(F&& f) {
   for (auto p = this; p != eol; p = p->cdr)
@@ -254,6 +259,11 @@ inline MalList* to_list(MalVector* vec) {
 
 inline MalList* cons(MalType* head, MalVector* vec) {
   return cons(head, to_list(vec));
+}
+
+inline MalList* list(std::initializer_list<MalType*> init) {
+  std::vector<MalType*> vec(init);
+  return to_list(new MalVector(vec));
 }
 
 inline MalVector* cdr(MalVector* list) {
