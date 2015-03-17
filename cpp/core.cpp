@@ -54,7 +54,7 @@ Env* core() {
     if (auto vec = match<MalVector>(seq))
       return reduce([f](MalType* head, MalType* prev) -> MalType* {
         return f->apply(::list({head})); }, vec, nullptr);
-    throw Error{"Expected Sequence"};
+    throw error("Expected Sequence");
   }));
 
   // Hashes
@@ -114,7 +114,7 @@ Env* core() {
   
   // Exceptions
   env->set(symbol("throw"), fn1([](MalType* exc) -> MalType* {
-    throw Error(exc); }));
+    throw exc; }));
     
   return env;
 }

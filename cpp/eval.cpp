@@ -152,13 +152,13 @@ MalType* EVAL(MalType* form, Env* env) {
           continue;
         } else if (symbol == _try) {
           if (rest->count() != 2 || rest->get<MalList>(1)->get(0) != _catch)
-            throw Error{"Incorrect try/catch syntax"};
+            throw error("Incorrect try/catch syntax");
           auto catch_bind = cast<MalSymbol>(rest->get<MalList>(1)->get(1));
           auto catch_body = rest->get<MalList>(1)->get(2);
           try {
             return EVAL(rest->get(0), env);
-          } catch (Error& error) {
-            Env* catch_env = new Env(env, ::list({catch_bind}), ::list({error.thrown}));
+          } catch (MalType* exc) {
+            Env* catch_env = new Env(env, ::list({catch_bind}), ::list({exc}));
             return EVAL(catch_body, catch_env);
           }
         } else if (symbol == _if) {
@@ -174,7 +174,7 @@ MalType* EVAL(MalType* form, Env* env) {
           auto bindings = rest->get<MalSeq>(0);
           auto body = rest->get(1);
           if (rest->size() > 2)
-            throw Error{"Too many arguments for " + _fn->s};
+            throw error("Too many arguments for " + _fn->s);
           return new MalLambda(bindings, body, env);
         }
       }
@@ -187,7 +187,7 @@ MalType* EVAL(MalType* form, Env* env) {
         env = new Env(lambda->env, lambda->bindings, list->cdr);
         continue;
       } else {
-        throw Error{"Expected Function"};
+        throw error("Expected Function");
       }
     }
     return eval_ast(form, env);

@@ -17,7 +17,7 @@ bool Reader::done() const {
 
 const string& Reader::peek() const {
     if (done())
-      throw Error{"Parse error"};
+      throw error("Parse error");
     return tokens[index];
 }
 
@@ -82,7 +82,7 @@ MalType* read_atom(Reader& reader) {
     reader.next();
     return new MalList(_splice_unquote, new MalList(read_form(reader), eol));
   } else if (reader.peek() == ")") {
-    throw Error{"Unmatched `)`"};
+    throw error("Unmatched `)`");
   } else {
     return symbol(reader.next());
   }
@@ -141,7 +141,7 @@ MalType* read_str(string s) {
     return nullptr;
   auto form = read_form(reader);
   if (!reader.done())
-    throw Error{"Extraneous input: `" + reader.next() + "`"};
+    throw error("Extraneous input: `" + reader.next() + "`");
   return form;
 }
 

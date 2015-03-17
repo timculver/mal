@@ -11,19 +11,11 @@
 struct MalType;
 struct MalList;
 struct MalSeq;
+struct MalString;
 class Env;
 
-struct Error {
-  Error(std::string message_);
-  Error(MalType* thrown_) : thrown(thrown_) { }
-  
-  std::string print();
-  
-  MalType* thrown;
-};
-
 // Create an error message for throwing.
-MalType* error(std::string s);
+MalString* error(std::string s);
 
 template <typename T> inline std::string print_type();
 
@@ -187,7 +179,7 @@ struct MalNil : public MalSeq {
   int count() { return 0; }
   MalType* first() { return this; }
   MalSeq* rest() { return this; }
-  MalType* nth(int n) { throw Error{"Empty Sequence"}; }
+  MalType* nth(int n) { throw error("Empty Sequence"); }
   
   std::string print(bool = true) const { return "nil"; }
 };
@@ -251,7 +243,7 @@ struct MalEol : public MalList {
   int count() { return 0; }
   MalType* first() { return nil; }
   MalSeq* rest() { return this; }
-  MalType* nth(int) { throw Error{"index out of range"}; }
+  MalType* nth(int) { throw error("index out of range"); }
 };
 
 template <typename T>
@@ -260,7 +252,7 @@ T* MalList::get(int ii) {
   while (ii-- > 0 && p != eol)
     p = p->cdr;
   if (p == eol)
-    throw Error{"Index out of range"};
+    throw error("Index out of range");
   return cast<T>(p->car);
 }
 
@@ -300,10 +292,10 @@ struct MalVector : public MalSeq {
   template <typename T = MalType>
   T* get(int ii) {
     if (ii >= e.size())
-      throw Error{"Expected " + print_type<T>() + " at position " + std::to_string(ii) + " in list: `" + print() + "`"};
+      throw error("Expected " + print_type<T>() + " at position " + std::to_string(ii) + " in list: `" + print() + "`");
     auto ret = dynamic_cast<T*>(e[ii]);
     if (!ret)
-      throw Error{"Expected " + print_type<T>() + " at position " + std::to_string(ii) + " in list: `" + print() + "`"};
+      throw error("Expected " + print_type<T>() + " at position " + std::to_string(ii) + " in list: `" + print() + "`");
     return ret;
   }
   int size() {
@@ -372,7 +364,7 @@ struct KeyValue {
 struct MalHash : public MalType {
   MalHash() { };
   MalHash(RBTree<KeyValue> tree_) : tree(std::move(tree_)) { }
-  bool equal_impl(MalType*) const { throw Error{"Unimplemented"}; }
+  bool equal_impl(MalType*) const { throw error("Unimplemented"); }
   std::string print(bool) const;
   
   MalHash* assoc(MalType* key, MalType* value);
@@ -388,7 +380,7 @@ template <typename F> void for_each(MalSeq* seq, F&& f) {
     return list->for_each(f);
   if (auto vec = match<MalVector>(seq))
     return vec->for_each(f);
-  throw Error{"Expected Sequence"};
+  throw error("Expected Sequence");
 }
 
 // Strongly-typed function definitions use these templates to generate type-checking code
@@ -406,7 +398,7 @@ NativeFn* fn3(F f) {
   return new NativeFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1), args->get<T3>(2)); });
 }
 
-inline MalType* error(std::string s) {
+inline MalString* error(std::string s) {
   return new MalString(move(s));
 }
 

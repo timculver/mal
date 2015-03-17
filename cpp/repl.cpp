@@ -51,8 +51,6 @@ int main(int argc, char* argv[]) {
         cout << out << "\n";
     } catch (MalType* error) {
       cout << error->print(false) << "\n";
-    } catch (Error& error) {
-      cout << error.print() << "\n";
     }
   }
   return 0;

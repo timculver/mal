@@ -9,12 +9,6 @@
 
 using namespace std;
 
-Error::Error(string message) : thrown(new MalString(move(message))) { }
-
-string Error::print() {
-  return thrown->print(false);
-}
-
 bool MalVector::equal_impl(MalType* other_object) const {
   auto other = static_cast<MalVector*>(other_object);
   if (e.size() != other->e.size())
@@ -108,7 +102,7 @@ string MalHash::print(bool print_readably) const {
 
 MalHash* MalHash::assoc(MalType* key, MalType* value) {
   if (!match<MalString>(key) && !match<MalSymbol>(key))
-    throw Error{"Expected String or Symbol"};
+    throw error("Expected String or Symbol");
   if (tree.member(KeyValue{key, value}))
     return this;
   return new MalHash(tree.inserted(KeyValue{key, value}));

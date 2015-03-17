@@ -37,7 +37,7 @@ public:
       });
       bool too_many_args = !varargs && q != eol;
       if (too_few_args || too_many_args)
-        throw Error{funcall_error(binds->count() - (varargs ? 2 : 0), exprs->size(), varargs)};
+        throw funcall_error(binds->count() - (varargs ? 2 : 0), exprs->size(), varargs);
     }
   }
   void set(MalSymbol* k, MalType* v) {
@@ -52,7 +52,7 @@ public:
   MalType* get(MalSymbol* k) {
     auto result = lookup(k);
     if (result == nullptr)
-      throw Error{"'" + k->s + "' not found"};
+      throw error("'" + k->s + "' not found");
     return result;
   }
   MalType* lookup(MalSymbol* k) {
@@ -63,7 +63,7 @@ public:
   }
 
 private:
-  inline static string funcall_error(int num_bindings, int num_args, bool varargs) {
+  inline static MalString* funcall_error(int num_bindings, int num_args, bool varargs) {
     // This case is worth the effort to put together a nice error message.
     stringstream err;
     err << "Function requires ";
@@ -72,7 +72,7 @@ private:
     else
       err << num_bindings;
     err << " argument" << (num_bindings == 1 ? "" : "s") << "; got " << num_args;
-    return err.str();
+    return error(err.str());
   }
 
   std::unordered_map<std::string, MalType*> table;
