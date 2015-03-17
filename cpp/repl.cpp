@@ -49,8 +49,10 @@ int main(int argc, char* argv[]) {
       string out = rep(line, repl_env);
       if (!out.empty())
         cout << out << "\n";
-    } catch(Error& error) {
-      cout << error.message << "\n";
+    } catch (MalType* error) {
+      cout << error->print(false) << "\n";
+    } catch (Error& error) {
+      cout << error.print() << "\n";
     }
   }
   return 0;

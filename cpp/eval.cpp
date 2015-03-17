@@ -56,8 +56,9 @@ MalLambda* is_macro_call(MalType* ast, Env* env) {
 
 MalType* macroexpand(MalType* ast, Env* env) {
   while (auto lambda = is_macro_call(ast, env)) {
-    auto env2 = new Env(env, lambda->bindings, cast<MalList>(ast)->cdr);
-    ast = EVAL(lambda->body, env2);
+    ast = lambda->apply(cast<MalList>(ast)->cdr);
+//    auto env2 = new Env(env, lambda->bindings, cast<MalList>(ast)->cdr);
+//    ast = EVAL(lambda->body, env2);
   }
   return ast;
 }
@@ -89,6 +90,8 @@ MalType* EVAL(MalType* form, Env* env) {
   static auto _do = symbol("do");
   static auto _if = symbol("if");
   static auto _fn = symbol("fn*");
+  static auto _try = symbol("try*");
+  static auto _catch = symbol("catch*");
   while (true) {
     form = macroexpand(form, env);
     if (MalList* list = match<MalList>(form)) {
@@ -147,6 +150,17 @@ MalType* EVAL(MalType* form, Env* env) {
             p = p->cdr;
           }
           continue;
+        } else if (symbol == _try) {
+          if (rest->count() != 2 || rest->get<MalList>(1)->get(0) != _catch)
+            throw Error{"Incorrect try/catch syntax"};
+          auto catch_bind = cast<MalSymbol>(rest->get<MalList>(1)->get(1));
+          auto catch_body = rest->get<MalList>(1)->get(2);
+          try {
+            return EVAL(rest->get(0), env);
+          } catch (Error& error) {
+            Env* catch_env = new Env(env, ::list({catch_bind}), ::list({error.thrown}));
+            return EVAL(catch_body, catch_env);
+          }
         } else if (symbol == _if) {
           auto cond = EVAL(rest->get(0), env);
           if (!match<MalFalse>(cond) && !match<MalNil>(cond)) {
@@ -166,8 +180,8 @@ MalType* EVAL(MalType* form, Env* env) {
       }
       // Apply
       list = static_cast<MalList*>(eval_ast(list, env));
-      if (auto f = match<MalFn>(list->car)) {
-        return f->f(list->cdr);
+      if (auto f = match<NativeFn>(list->car)) {
+        return f->apply(list->cdr);
       } else if (auto lambda = match<MalLambda>(list->car)) {
         form = lambda->body;
         env = new Env(lambda->env, lambda->bindings, list->cdr);

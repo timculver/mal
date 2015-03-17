@@ -4,7 +4,16 @@
 #include <regex>
 #include <unordered_map>
 
+#include "env.hpp"
+#include "eval.hpp"
+
 using namespace std;
+
+Error::Error(string message) : thrown(new MalString(move(message))) { }
+
+string Error::print() {
+  return thrown->print(false);
+}
 
 bool MalVector::equal_impl(MalType* other_object) const {
   auto other = static_cast<MalVector*>(other_object);
@@ -150,13 +159,19 @@ string MalString::escape(string s) {
   return regex_replace(regex_replace(regex_replace(s, re2, "\\\\"), re1, "\\\""), re3, "\\n");
 }
 
-string MalFn::print(bool) const {
+string NativeFn::print(bool) const {
   return "#<function>";
 }
 
 string MalLambda::print(bool) const {
   return is_macro ? "#<macro>" : "#<lambda>";
 }
+
+MalType* MalLambda::apply(MalList* args) {
+  auto exec_env = new Env(env, bindings, args);
+  return EVAL(body, exec_env);
+}
+
 
 bool equal(MalType* a, MalType* b);
 

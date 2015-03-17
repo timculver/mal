@@ -23,7 +23,7 @@ Env* core() {
     return new MalInt(a->v / b->v); }));
 
   // Lists
-  env->set(symbol("list"), new MalFn([](MalList* args) { return args; }));
+  env->set(symbol("list"), new NativeFn([](MalList* args) { return args; }));
   env->set(symbol("list?"), fn1([](MalType* arg) {
     return boolean(match<MalList>(arg)); }));
   
@@ -41,12 +41,21 @@ Env* core() {
       return cons(first, to_list(vec));
     return ::list({first, rest});
   }));
-  env->set(symbol("concat"), new MalFn([](MalList* sequences) {
+  env->set(symbol("concat"), new NativeFn([](MalList* sequences) {
     return concat(sequences); }));
   env->set(symbol("first"), fn1<MalSeq>([](MalSeq* seq) -> MalType* {
     return seq->first(); }));
   env->set(symbol("rest"), fn1<MalSeq>([](MalSeq* seq) -> MalSeq* {
     return seq->rest(); }));
+  env->set(symbol("map"), fn2<MalFn, MalSeq>([](MalFn* f, MalSeq* seq) {
+    if (auto list = match<MalList>(seq))
+      return reduce([f](MalType* head, MalList* rest) -> MalList* {
+        return cons(f->apply(::list({head})), rest); }, list);
+    if (auto vec = match<MalVector>(seq))
+      return reduce([f](MalType* head, MalType* prev) -> MalType* {
+        return f->apply(::list({head})); }, vec, nullptr);
+    throw Error{"Expected Sequence"};
+  }));
 
   // Hashes
   env->set(symbol("assoc"), fn3<MalHash, MalType, MalType>([](MalHash* hash, MalType* key, MalType* value) {
@@ -66,13 +75,13 @@ Env* core() {
     return boolean(a->v >= b->v); }));
   
   // Printing
-  env->set(symbol("pr-str"), new MalFn([](MalList* args) {
+  env->set(symbol("pr-str"), new NativeFn([](MalList* args) {
     stringstream s;
     for (auto p=args; p!=eol; p=p->cdr)
       s << (p==args ? "" : " ") << p->car->print(true);
     return new MalString(s.str());
   }));
-  env->set(symbol("str"), new MalFn([](MalList* args) {
+  env->set(symbol("str"), new NativeFn([](MalList* args) {
     if (args == eol)
       return new MalString("");
     stringstream s;
@@ -80,13 +89,13 @@ Env* core() {
       s << p->car->print(false);
     return new MalString(s.str());
   }));
-  env->set(symbol("prn"), new MalFn([](MalList* args) {
+  env->set(symbol("prn"), new NativeFn([](MalList* args) {
     for (auto p=args; p!=eol; p=p->cdr)
       cout << (p==args ? "" : " ") << p->car->print(true);
     cout << endl;
     return nil;
   }));
-  env->set(symbol("println"), new MalFn([](MalList* args) {
+  env->set(symbol("println"), new NativeFn([](MalList* args) {
     for (auto p=args; p!=eol; p=p->cdr)
       cout << (p==args ? "" : " ") << p->car->print(false);
     cout << endl;
@@ -102,6 +111,10 @@ Env* core() {
     sstr << file.rdbuf();
     return new MalString(sstr.str());
   }));
+  
+  // Exceptions
+  env->set(symbol("throw"), fn1([](MalType* exc) -> MalType* {
+    throw Error(exc); }));
     
   return env;
 }

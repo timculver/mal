@@ -14,9 +14,16 @@ struct MalSeq;
 class Env;
 
 struct Error {
-  Error(std::string message_) : message(message_) { }
-  std::string message;
+  Error(std::string message_);
+  Error(MalType* thrown_) : thrown(thrown_) { }
+  
+  std::string print();
+  
+  MalType* thrown;
 };
+
+// Create an error message for throwing.
+MalType* error(std::string s);
 
 template <typename T> inline std::string print_type();
 
@@ -37,7 +44,7 @@ template <typename T = MalType>
 T* cast(MalType* form) {
   auto ret = dynamic_cast<T*>(form);
   if (!ret)
-    throw Error{"Expected " + print_type<T>() + ", found `" + form->print() + "`"};
+    throw error("Expected " + print_type<T>() + ", found `" + form->print() + "`");
   return ret;
 }
 
@@ -105,7 +112,6 @@ struct MalString : public MalType {
 };
 template<> inline std::string print_type<MalString>() { return "String"; }
 
-
 struct MalInt : public MalType {
   MalInt(int v_) : v(v_) { }
   bool equal_impl(MalType* other) const {
@@ -120,21 +126,32 @@ template<> inline std::string print_type<MalInt>() { return "Int"; }
 // Functions (native and lambda)
 
 struct MalFn : public MalType {
-  template <typename F>
-  MalFn(F f_) : f(std::move(f_)) { }
-
-  bool equal_impl(MalType*) const { return false; }
-  std::string print(bool print_readably = true) const;
-  const std::function<MalType*(MalList*)> f;
+  virtual MalType* apply(MalList* args) = 0;
 };
 template<> inline std::string print_type<MalFn>() { return "Function"; }
 
-struct MalLambda : public MalType {
+struct NativeFn : public MalFn {
+  template <typename F>
+  NativeFn(F f_) : f(std::move(f_)) { }
+
+  bool equal_impl(MalType*) const { return false; }
+  std::string print(bool print_readably = true) const;
+
+  MalType* apply(MalList* args) { return f(args); }
+  
+private:
+  const std::function<MalType*(MalList*)> f;
+};
+template<> inline std::string print_type<NativeFn>() { return "Function"; }
+
+struct MalLambda : public MalFn {
   MalLambda(MalSeq* bindings_, MalType* body_, Env* env_, bool is_macro_ = false)
     : bindings(bindings_), body(body_), env(env_), is_macro(is_macro_) { }
   
   bool equal_impl(MalType*) const { return false; }
   std::string print(bool print_readably = true) const;
+
+  MalType* apply(MalList* args);
 
   MalSeq* bindings;
   MalType* body;
@@ -377,17 +394,20 @@ template <typename F> void for_each(MalSeq* seq, F&& f) {
 // Strongly-typed function definitions use these templates to generate type-checking code
 // and dispatch to a C++ function with the correct types.
 template <typename T1 = MalType, typename F>
-MalFn* fn1(F f) {
-  return new MalFn([=](MalList* args) { return f(args->get<T1>(0)); });
+NativeFn* fn1(F f) {
+  return new NativeFn([=](MalList* args) { return f(args->get<T1>(0)); });
 }
 template <typename T1 = MalType, typename T2 = MalType, typename F>
-MalFn* fn2(F f) {
-  return new MalFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1)); });
+NativeFn* fn2(F f) {
+  return new NativeFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1)); });
 }
 template <typename T1 = MalType, typename T2 = MalType, typename T3 = MalType, typename F>
-MalFn* fn3(F f) {
-  return new MalFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1), args->get<T3>(2)); });
+NativeFn* fn3(F f) {
+  return new NativeFn([=](MalList* args) { return f(args->get<T1>(0), args->get<T2>(1), args->get<T3>(2)); });
 }
 
+inline MalType* error(std::string s) {
+  return new MalString(move(s));
+}
 
 #endif

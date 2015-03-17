@@ -52,7 +52,7 @@ public:
   MalType* get(MalSymbol* k) {
     auto result = lookup(k);
     if (result == nullptr)
-      throw Error{"Not found: `" + k->s + "`"};
+      throw Error{"'" + k->s + "' not found"};
     return result;
   }
   MalType* lookup(MalSymbol* k) {
