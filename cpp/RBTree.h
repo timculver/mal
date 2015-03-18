@@ -90,6 +90,18 @@ public:
         else
             return true;
     }
+    T find(T x) const
+    {
+        if (isEmpty())
+            return T();
+        T y = root();
+        if (x < y)
+            return left().find(x);
+        else if (y < x)
+            return right().find(x);
+        else
+            return y;
+    }
     RBTree inserted(T x) const
     {
         RBTree t = ins(x);
