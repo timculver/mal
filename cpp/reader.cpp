@@ -83,6 +83,8 @@ MalType* read_atom(Reader& reader) {
     return new MalList(_splice_unquote, new MalList(read_form(reader), eol));
   } else if (reader.peek() == ")") {
     throw error("Unmatched `)`");
+  } else if (!reader.peek().empty() && reader.peek()[0] == ':') {
+    return keyword(reader.next());
   } else {
     return symbol(reader.next());
   }
@@ -126,7 +128,7 @@ MalType* read_hash(Reader& reader) {
   reader.next(); // "{"
   MalHash* hash = new MalHash();
   while (reader.peek()[0] != '}')
-    hash = hash->assoc(read_form(reader), read_form(reader));
+    hash = hash->assoc(cast<HashKey>(read_form(reader)), read_form(reader));
   reader.next(); // "}"
   return hash;
 }

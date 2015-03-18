@@ -102,15 +102,11 @@ string MalHash::print(bool print_readably) const {
   return s.str();
 }
 
-MalHash* MalHash::assoc(MalType* key, MalType* value) {
-  if (!match<MalString>(key) && !match<MalSymbol>(key))
-    throw error("Expected String or Symbol");
+MalHash* MalHash::assoc(HashKey* key, MalType* value) {
   return new MalHash(tree.inserted(KeyValue{key, value}));
 }
 
-MalHash* MalHash::dissoc(MalType* key) {
-  if (!match<MalString>(key) && !match<MalSymbol>(key))
-    throw error("Expected String or Symbol");
+MalHash* MalHash::dissoc(HashKey* key) {
   // TODO: Implement delete properly, or find a real HAMT impl.
   RBTree<KeyValue> newtree;
   forEach(tree, [&key, &newtree](const KeyValue& kv) {
@@ -122,8 +118,8 @@ MalHash* MalHash::dissoc(MalType* key) {
 
 MalHash* MalHash::dissoc_many(MalList* keys) {
   for (auto p = keys; p != eol; p = p->cdr)
-    if (!match<MalString>(p->car) && !match<MalSymbol>(p->car))
-      throw error("Expected String or Symbol, got " + p->car->print());
+    if (!match<HashKey>(p->car))
+      throw error("Expected String or Symbol or Keyword, got " + p->car->print());
   // TODO: Implement delete properly, or find a real HAMT impl.
   RBTree<KeyValue> newtree;
   forEach(tree, [&keys, &newtree](const KeyValue& kv) {
@@ -156,11 +152,11 @@ MalList* MalHash::values() {
   return values;
 }
 
-bool MalHash::contains(MalType* key) {
+bool MalHash::contains(HashKey* key) {
   return tree.member(KeyValue{key, nullptr});
 }
 
-MalType* MalHash::get(MalType* key) {
+MalType* MalHash::get(HashKey* key) {
   auto kv = tree.find(KeyValue{key, nullptr});
   return kv.key ? kv.value : nil;
 }
@@ -193,6 +189,28 @@ MalSymbol* _quote = symbol("quote");
 MalSymbol* _quasiquote = symbol("quasiquote");
 MalSymbol* _unquote = symbol("unquote");
 MalSymbol* _splice_unquote = symbol("splice-unquote");
+
+
+string MalKeyword::print(bool) const {
+  return s;
+}
+
+MalKeyword::MalKeyword(std::string s_) : s(std::move(s_)) {
+  if (s.empty())
+    throw error("Empty string can't be converted to Keyword");
+}
+
+MalKeyword* keyword(const string& s) {
+  static unordered_map<string, MalKeyword*> table;
+  auto it = table.find(s);
+  if (it != table.end())
+    return it->second;
+  auto k = new MalKeyword(s);
+  table[s] = k;
+  return k;
+}
+
+
 
 string MalString::print(bool print_readably) const {
   return print_string(s, print_readably);

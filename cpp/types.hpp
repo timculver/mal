@@ -70,16 +70,23 @@ inline MalType* boolean(bool b) {
 
 // Symbol, string, int
 
-struct MalSymbol : public MalType {
+struct HashKey : public MalType {
+  virtual const std::string& get_string() = 0;
+};
+template<> inline std::string print_type<HashKey>() { return "String or Symbol or Keyword"; }
+
+struct MalSymbol : public HashKey {
 private:
   MalSymbol(std::string s_);
   friend MalSymbol* symbol(const std::string&);
 public:
+  // MalType overrides
   bool equal_impl(MalType*) const { return false; }
   std::string print(bool print_readably = true) const;
   
-  bool is_keyword() { return s[0] == ':'; }
-  
+  // HashKey override
+  const std::string& get_string() { return s; }
+
   const std::string s;
 };
 template<> inline std::string print_type<MalSymbol>() { return "Symbol"; }
@@ -90,13 +97,35 @@ extern MalSymbol* _quasiquote;
 extern MalSymbol* _unquote;
 extern MalSymbol* _splice_unquote;
 
+struct MalKeyword : public HashKey {
+private:
+  MalKeyword(std::string s_);
+  friend MalKeyword* keyword(const std::string&);
+public:
+  // MalType overrides
+  bool equal_impl(MalType*) const { return false; }
+  std::string print(bool print_readably = true) const;
+  
+  // HashKey override
+  const std::string& get_string() { return s; }
+  
+  const std::string s;
+};
+template<> inline std::string print_type<MalKeyword>() { return "Keyword"; }
 
-struct MalString : public MalType {
+MalKeyword* keyword(const std::string&);
+
+struct MalString : public HashKey {
   MalString(std::string(s_)) : s(std::move(s_)) { }
+  
+  // MalType overrides
   bool equal_impl(MalType* other) const {
     return s == static_cast<MalString*>(other)->s;
   }
   std::string print(bool print_readably = true) const;
+  
+  // HashKey override
+  const std::string& get_string() { return s; }
   
   const std::string s;
 
@@ -354,19 +383,16 @@ MalVector* reduce(F&& f, MalVector* vec, MalType* base) {
 // Hash
 
 struct KeyValue {
-  MalType* key; // Must be string or symbol for now. Internally, key=nullptr is a sentinel.
+  HashKey* key; // Internally, key=nullptr is a sentinel in RBTree::find().
   MalType* value;
   
   bool operator<(const KeyValue& other) const {
-    auto str1 = dynamic_cast<MalString*>(key);
-    auto sym1 = dynamic_cast<MalSymbol*>(key);
-    auto str2 = dynamic_cast<MalString*>(other.key);
-    auto sym2 = dynamic_cast<MalSymbol*>(other.key);
-    if (str1 && str2)
-      return str1->s < str2->s;
-    if (sym1 && sym2)
-      return sym1->s < sym2->s;
-    return !!str1; // strings before symbols
+    if (key == other.key)
+      return false;
+    if (key->get_string() != other.key->get_string())
+      return key->get_string() < other.key->get_string();
+    // Unstable type comparison
+    return typeid(*key).hash_code() < typeid(*other.key).hash_code();
   }
 };
 
@@ -376,11 +402,11 @@ struct MalHash : public MalType {
   bool equal_impl(MalType*) const { throw error("Unimplemented"); }
   std::string print(bool) const;
   
-  MalHash* assoc(MalType* key, MalType* value);
-  MalHash* dissoc(MalType* key);
+  MalHash* assoc(HashKey* key, MalType* value);
+  MalHash* dissoc(HashKey* key);
   MalHash* dissoc_many(MalList* keys);
-  MalType* get(MalType* key);
-  bool contains(MalType* key);
+  MalType* get(HashKey* key);
+  bool contains(HashKey* key);
   MalList* keys();
   MalList* values();
   

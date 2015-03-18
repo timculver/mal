@@ -16,15 +16,11 @@ Env* core() {
   env->set(symbol("symbol"), fn1<MalString>([](MalString* s) {
     return symbol(s->s); }));
   env->set(symbol("keyword"), fn1<MalString>([](MalString* s) {
-    return symbol(":" + s->s); }));
+    return keyword(s->s); }));
   env->set(symbol("symbol?"), fn1<MalType>([](MalType* obj) -> MalType* {
-    if (auto sym = match<MalSymbol>(obj))
-      return boolean(!sym->is_keyword());
-    return _false; }));
+    return boolean(match<MalSymbol>(obj)); }));
   env->set(symbol("keyword?"), fn1<MalType>([](MalType* obj) -> MalType* {
-    if (auto sym = match<MalSymbol>(obj))
-      return boolean(sym->is_keyword());
-    return _false; }));
+    return boolean(match<MalKeyword>(obj)); }));
   env->set(symbol("true?"), fn1<MalType>([](MalType* obj) -> MalType* {
     return boolean(obj == _true); }));
   env->set(symbol("false?"), fn1<MalType>([](MalType* obj) -> MalType* {
@@ -112,31 +108,31 @@ Env* core() {
   env->set(symbol("hash-map"), new NativeFn([](MalList* args) {
     MalHash* hash = new MalHash();
     for (auto p = args; p != eol; p = p->cdr->cdr)
-      hash = hash->assoc(p->get(0), p->get(1));
+      hash = hash->assoc(p->get<HashKey>(0), p->get(1));
     return hash; }));
   env->set(symbol("assoc"), new NativeFn([](MalList* args) {
     auto hash = cast<MalHash>(args->get(0));
     args = args->cdr;
     while (args != eol) {
-      auto key = args->get(0);
+      auto key = args->get<HashKey>(0);
       auto value = args->get(1);
       hash = hash->assoc(key, value);
       args = args->cdr->cdr;
     }
     return hash;
   }));
-  env->set(symbol("dissoc"), fn2<MalHash, MalType>([](MalHash* hash, MalType* key) {
+  env->set(symbol("dissoc"), fn2<MalHash, HashKey>([](MalHash* hash, HashKey* key) {
     return hash->dissoc(key);
   }));
   env->set(symbol("dissoc"), new NativeFn([](MalList* args) {
     auto hash = cast<MalHash>(args->get(0));
     return hash->dissoc_many(args->cdr);
   }));
-  env->set(symbol("contains?"), fn2<MalType, MalType>([](MalType* hash_arg, MalType* key) -> MalType* {
+  env->set(symbol("contains?"), fn2<MalType, HashKey>([](MalType* hash_arg, HashKey* key) -> MalType* {
     if (hash_arg == nil)
       return _false;
     return boolean(cast<MalHash>(hash_arg)->contains(key)); }));
-  env->set(symbol("get"), fn2<MalType, MalType>([](MalType* hash_arg, MalType* key) -> MalType* {
+  env->set(symbol("get"), fn2<MalType, HashKey>([](MalType* hash_arg, HashKey* key) -> MalType* {
     if (hash_arg == nil)
       return nil;
     return cast<MalHash>(hash_arg)->get(key); }));

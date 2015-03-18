@@ -7,11 +7,10 @@
 using namespace std;
 
 MalType* eval_ast(MalType* form, Env* env) {
-  if (auto symbol = match<MalSymbol>(form)) {
-    if (symbol->is_keyword())
-      return symbol;
+  if (auto keyword = match<MalKeyword>(form))
+    return keyword;
+  if (auto symbol = match<MalSymbol>(form))
     return env->get(symbol);
-  }
   if (auto list = match<MalList>(form)) {
     return reduce([env](MalType* first, MalList* rest) {
       return cons(EVAL(first, env), rest); }, list);
