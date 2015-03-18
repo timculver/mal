@@ -72,11 +72,13 @@ inline MalType* boolean(bool b) {
 
 struct MalSymbol : public MalType {
 private:
-  MalSymbol(std::string s_) : s(std::move(s_)) { }
+  MalSymbol(std::string s_);
   friend MalSymbol* symbol(const std::string&);
 public:
   bool equal_impl(MalType*) const { return false; }
   std::string print(bool print_readably = true) const;
+  
+  bool is_keyword() { return s[0] == ':'; }
   
   const std::string s;
 };
@@ -262,7 +264,7 @@ template <typename F> void MalList::for_each(F&& f) {
 }
 
 template <typename F>
-MalType* reduce(F&& f, MalList* list) {
+MalList* reduce(F&& f, MalList* list) {
   std::vector<MalType*> v;
   for (auto p = list; p != eol; p = p->cdr)
     v.push_back(p->car);
@@ -318,6 +320,13 @@ inline MalList* to_list(MalVector* vec) {
   return list;
 }
 
+inline MalVector* to_vector(MalList* list) {
+  std::vector<MalType*> v;
+  for (auto p = list; p != eol; p = p->cdr)
+    v.push_back(p->car);
+  return new MalVector(std::move(v));
+}
+
 inline MalList* list(std::initializer_list<MalType*> init) {
   std::vector<MalType*> vec(init);
   return to_list(new MalVector(vec));
@@ -333,7 +342,7 @@ inline MalVector* cdr(MalVector* list) {
 }
 
 template <typename F>
-MalType* reduce(F&& f, MalVector* vec, MalType* base) {
+MalVector* reduce(F&& f, MalVector* vec, MalType* base) {
   std::vector<MalType*> v;
   for (auto obj : vec->e) {
     base = f(obj, base);
@@ -345,7 +354,7 @@ MalType* reduce(F&& f, MalVector* vec, MalType* base) {
 // Hash
 
 struct KeyValue {
-  MalType* key; // must be string or symbol for now
+  MalType* key; // Must be string or symbol for now. Internally, key=nullptr is a sentinel.
   MalType* value;
   
   bool operator<(const KeyValue& other) const {
@@ -368,6 +377,12 @@ struct MalHash : public MalType {
   std::string print(bool) const;
   
   MalHash* assoc(MalType* key, MalType* value);
+  MalHash* dissoc(MalType* key);
+  MalHash* dissoc_many(MalList* keys);
+  MalType* get(MalType* key);
+  bool contains(MalType* key);
+  MalList* keys();
+  MalList* values();
   
   const RBTree<KeyValue> tree;
 };

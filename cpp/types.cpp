@@ -82,9 +82,11 @@ MalList* concat(MalList* sequences) {
     return eol;
   auto first = car(sequences);
   auto rest = cdr(sequences);
+  if (auto list = match<MalList>(first))
+    return concat2(list, concat(rest));
   if (auto vec = match<MalVector>(first))
     return concat2(to_list(vec), concat(rest));
-  return concat2(cast<MalList>(first), concat(rest));
+  return cons(first, concat(rest));
 }
 
 string MalHash::print(bool print_readably) const {
@@ -103,9 +105,64 @@ string MalHash::print(bool print_readably) const {
 MalHash* MalHash::assoc(MalType* key, MalType* value) {
   if (!match<MalString>(key) && !match<MalSymbol>(key))
     throw error("Expected String or Symbol");
-  if (tree.member(KeyValue{key, value}))
-    return this;
   return new MalHash(tree.inserted(KeyValue{key, value}));
+}
+
+MalHash* MalHash::dissoc(MalType* key) {
+  if (!match<MalString>(key) && !match<MalSymbol>(key))
+    throw error("Expected String or Symbol");
+  // TODO: Implement delete properly, or find a real HAMT impl.
+  RBTree<KeyValue> newtree;
+  forEach(tree, [&key, &newtree](const KeyValue& kv) {
+    if (!equal(kv.key, key))
+      newtree = newtree.inserted(kv);
+  });
+  return new MalHash(newtree);
+}
+
+MalHash* MalHash::dissoc_many(MalList* keys) {
+  for (auto p = keys; p != eol; p = p->cdr)
+    if (!match<MalString>(p->car) && !match<MalSymbol>(p->car))
+      throw error("Expected String or Symbol, got " + p->car->print());
+  // TODO: Implement delete properly, or find a real HAMT impl.
+  RBTree<KeyValue> newtree;
+  forEach(tree, [&keys, &newtree](const KeyValue& kv) {
+    bool to_delete = false;
+    for (auto p = keys; p != eol; p = p->cdr) {
+      if (equal(kv.key, p->car)) {
+        to_delete = true;
+        break;
+      }
+    }
+    if (!to_delete)
+      newtree = newtree.inserted(kv);
+  });
+  return new MalHash(newtree);
+}
+
+MalList* MalHash::keys() {
+  MalList* keys = eol;
+  forEach(tree, [&keys](const KeyValue& kv) {
+    keys = cons(kv.key, keys);
+  });
+  return keys;
+}
+
+MalList* MalHash::values() {
+  MalList* values = eol;
+  forEach(tree, [&values](const KeyValue& kv) {
+    values = cons(kv.value, values);
+  });
+  return values;
+}
+
+bool MalHash::contains(MalType* key) {
+  return tree.member(KeyValue{key, nullptr});
+}
+
+MalType* MalHash::get(MalType* key) {
+  auto kv = tree.find(KeyValue{key, nullptr});
+  return kv.key ? kv.value : nil;
 }
 
 string MalInt::print(bool) const {
@@ -116,6 +173,11 @@ string MalInt::print(bool) const {
 
 string MalSymbol::print(bool) const {
   return s;
+}
+
+MalSymbol::MalSymbol(std::string s_) : s(std::move(s_)) {
+  if (s.empty())
+    throw error("Empty string can't be converted to Symbol");
 }
 
 MalSymbol* symbol(const string& s) {

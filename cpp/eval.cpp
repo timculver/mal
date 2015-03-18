@@ -8,8 +8,7 @@ using namespace std;
 
 MalType* eval_ast(MalType* form, Env* env) {
   if (auto symbol = match<MalSymbol>(form)) {
-    // I believe a keyword is identical to a symbol everywhere except here.
-    if (symbol->s[0] == ':')
+    if (symbol->is_keyword())
       return symbol;
     return env->get(symbol);
   }
