@@ -150,16 +150,16 @@ struct MalString : public HashKey {
 };
 template<> inline std::string print_type<MalString>() { return "String"; }
 
-struct MalInt : public MalType {
-  MalInt(int v_) : v(v_) { }
+struct Number : public MalType {
+  Number(double v_) : v(v_) { }
   bool equal_impl(MalType* other) const {
-    return v == static_cast<MalInt*>(other)->v;
+    return v == static_cast<Number*>(other)->v;
   }
   std::string print(bool = true) const;
   
-  const int v;
+  const double v;
 };
-template<> inline std::string print_type<MalInt>() { return "Int"; }
+template<> inline std::string print_type<Number>() { return "Int"; }
 
 // Functions (native and lambda)
 

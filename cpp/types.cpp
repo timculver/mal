@@ -169,8 +169,9 @@ MalType* MalHash::get(HashKey* key) {
   return kv.key ? kv.value : nil;
 }
 
-string MalInt::print(bool) const {
+string Number::print(bool) const {
   stringstream s;
+  s.precision(16); // makes integers < 2^53 appear without decimal point
   s << v;
   return s.str();
 }

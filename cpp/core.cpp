@@ -1,5 +1,6 @@
 #include "core.hpp"
 
+#include <chrono>
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -29,14 +30,14 @@ Env* core() {
     return boolean(obj == nil); }));
 
   // Integer math
-  env->set(symbol("+"), fn2<MalInt, MalInt>([](MalInt* a, MalInt* b) {
-    return new MalInt(a->v + b->v); }));
-  env->set(symbol("*"), fn2<MalInt, MalInt>([](MalInt* a, MalInt* b) {
-    return new MalInt(a->v * b->v); }));
-  env->set(symbol("-"), fn2<MalInt, MalInt>([](MalInt* a, MalInt* b) {
-    return new MalInt(a->v - b->v); }));
-  env->set(symbol("/"), fn2<MalInt, MalInt>([](MalInt* a, MalInt* b) {
-    return new MalInt(a->v / b->v); }));
+  env->set(symbol("+"), fn2<Number, Number>([](Number* a, Number* b) {
+    return new Number(a->v + b->v); }));
+  env->set(symbol("*"), fn2<Number, Number>([](Number* a, Number* b) {
+    return new Number(a->v * b->v); }));
+  env->set(symbol("-"), fn2<Number, Number>([](Number* a, Number* b) {
+    return new Number(a->v - b->v); }));
+  env->set(symbol("/"), fn2<Number, Number>([](Number* a, Number* b) {
+    return new Number(a->v / b->v); }));
 
   // Functions
   env->set(symbol("apply"), new NativeFn([](MalList* args) {
@@ -57,10 +58,10 @@ Env* core() {
   // Sequences: functions that work on both lists and vectors
   env->set(symbol("empty?"), fn1<MalSeq>([](MalSeq* seq) -> MalType* {
     return boolean(seq->empty()); }));
-  env->set(symbol("nth"), fn2<MalSeq, MalInt>([](MalSeq* seq, MalInt* n) {
+  env->set(symbol("nth"), fn2<MalSeq, Number>([](MalSeq* seq, Number* n) {
     return seq->nth(n->v); }));
   env->set(symbol("count"), fn1<MalSeq>([](MalSeq* seq) {
-    return new MalInt(seq->count()); }));
+    return new Number(seq->count()); }));
   env->set(symbol("cons"), fn2([](MalType* first, MalType* rest) {
     if (auto list = match<MalList>(rest))
       return cons(first, list);
@@ -163,13 +164,13 @@ Env* core() {
   // Comparisons
   env->set(symbol("="), fn2([](MalType* a, MalType* b) {
     return boolean(::equal(a, b)); }));
-  env->set(symbol("<"), fn2<MalInt, MalInt>([](MalInt* a, MalInt* b) {
+  env->set(symbol("<"), fn2<Number, Number>([](Number* a, Number* b) {
     return boolean(a->v < b->v); }));
-  env->set(symbol("<="), fn2<MalInt, MalInt>([](MalInt* a, MalInt* b) {
+  env->set(symbol("<="), fn2<Number, Number>([](Number* a, Number* b) {
     return boolean(a->v <= b->v); }));
-  env->set(symbol(">"), fn2<MalInt, MalInt>([](MalInt* a, MalInt* b) {
+  env->set(symbol(">"), fn2<Number, Number>([](Number* a, Number* b) {
     return boolean(a->v > b->v); }));
-  env->set(symbol(">="), fn2<MalInt, MalInt>([](MalInt* a, MalInt* b) {
+  env->set(symbol(">="), fn2<Number, Number>([](Number* a, Number* b) {
     return boolean(a->v >= b->v); }));
   
   // I/O
@@ -225,5 +226,10 @@ Env* core() {
     auto newmeta = args->get(1);
     return dynamic_cast<MalType*>(obj->with_meta(newmeta)); }));
 
+  env->set(symbol("time-ms"), new NativeFn([](MalList*) -> MalType* {
+    auto now = chrono::steady_clock::now();
+    long long time_ms = chrono::time_point_cast<chrono::milliseconds>(now).time_since_epoch().count();
+    return new Number((int)time_ms); }));
+  
   return env;
 }

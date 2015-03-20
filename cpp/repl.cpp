@@ -30,7 +30,13 @@ int main(int argc, char* argv[]) {
   rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))", repl_env);
 
   if (argc >= 2) {
-    rep("(load-file \"" + MalString::escape(string(argv[1])) + "\")", repl_env);
+    try {
+      rep("(load-file \"" + MalString::escape(string(argv[1])) + "\")", repl_env);
+    } catch (MalType* error) {
+      cout << error->print(false) << "\n";
+      return 1;
+    }
+    return 0;
   }
 
   MalList* argv_list = eol;
