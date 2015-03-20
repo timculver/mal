@@ -84,22 +84,26 @@ Env* core() {
     throw error("Expected Sequence");
   }));
   env->set(symbol("sequential?"), fn1([](MalType* arg) -> MalType* {
-    if (auto seq = match<MalSeq>(arg)) {
-      if (seq == nil)
-        return _false;
-      MalInt* prev = nullptr;
-      bool sequential = true;
-      for_each(seq, [&prev, &sequential](MalType* elem) {
-        if (auto num = match<MalInt>(elem)) {
-          if (prev && prev->v > num->v)
-            sequential = false;
-          prev = num;
-        }
-        // (sequential? ["z" "a"]) => true
-      });
-      return boolean(sequential);
+    if (arg == nil)
+      return _false; // but why?
+    return boolean(match<MalSeq>(arg)); }));
+  env->set(symbol("conj"), new NativeFn([](MalList* args) -> MalSeq* {
+    auto seq = args->get<MalSeq>(0);
+    auto elems = args->cdr;
+    if (seq == nil)
+      seq = eol; // reference impl missed this one
+    if (auto list = match<MalList>(seq)) {
+      for (auto p = elems; p != eol; p = p->cdr)
+        list = cons(p->car, list);
+      return list;
     }
-    return _false;
+    if (auto vec = match<MalVector>(seq)) {
+      vector<MalType*> newvec = vec->e;
+      for (auto p = elems; p != eol; p = p->cdr)
+        newvec.push_back(p->car);
+      return new MalVector(move(newvec));
+    }
+    throw error("Expected Sequence");
   }));
     
   // Hashes
@@ -140,6 +144,21 @@ Env* core() {
     return hash->keys(); }));
   env->set(symbol("vals"), fn1<MalHash>([](MalHash* hash) {
     return hash->values(); }));
+  
+  // Atom
+  env->set(symbol("atom"), fn1([](MalType* ref) {
+    return new Atom(ref); }));
+  env->set(symbol("deref"), fn1<Atom>([](Atom* atom) {
+    return atom->ref; }));
+  env->set(symbol("reset!"), fn2<Atom, MalType>([](Atom* atom, MalType* newref) {
+    atom->ref = newref;
+    return atom->ref; }));
+  env->set(symbol("swap!"), new NativeFn([](MalList* args) {
+    auto atom = args->get<Atom>(0);
+    auto fn = args->get<MalFn>(1);
+    auto fnargs = args->cdr->cdr;
+    atom->ref = fn->apply(cons(atom->ref, fnargs));
+    return atom->ref; }));
   
   // Comparisons
   env->set(symbol("="), fn2([](MalType* a, MalType* b) {
@@ -197,6 +216,14 @@ Env* core() {
   // Exceptions
   env->set(symbol("throw"), fn1([](MalType* exc) -> MalType* {
     throw exc; }));
-    
+  
+  // Metadata
+  env->set(symbol("meta"), fn1<Meta>([](Meta* m) -> MalType* {
+    return m->meta; }));
+  env->set(symbol("with-meta"), new NativeFn([](MalList* args) -> MalType* {
+    auto obj = dynamic_cast<Meta*>(args->get(0));
+    auto newmeta = args->get(1);
+    return dynamic_cast<MalType*>(obj->with_meta(newmeta)); }));
+
   return env;
 }

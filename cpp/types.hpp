@@ -45,6 +45,21 @@ T* match(MalType* form) {
   return dynamic_cast<T*>(form);
 }
 
+struct Meta {
+  Meta();
+  
+  virtual Meta* copy() = 0;
+  
+  Meta* with_meta(MalType* newmeta) {
+    auto newobj = copy();
+    newobj->meta = newmeta;
+    return newobj;
+  }
+
+  MalType* meta;
+};
+template<> inline std::string print_type<Meta>() { return "Function/List/Vector/Hash"; }
+
 // true, false
 
 struct MalTrue : public MalType {
@@ -153,7 +168,7 @@ struct MalFn : public MalType {
 };
 template<> inline std::string print_type<MalFn>() { return "Function"; }
 
-struct NativeFn : public MalFn {
+struct NativeFn : public MalFn, public Meta {
   template <typename F>
   NativeFn(F f_) : f(std::move(f_)) { }
 
@@ -162,20 +177,27 @@ struct NativeFn : public MalFn {
 
   MalType* apply(MalList* args) { return f(args); }
   
+  Meta* copy() { return new NativeFn(f); }
+
 private:
   const std::function<MalType*(MalList*)> f;
 };
 template<> inline std::string print_type<NativeFn>() { return "Function"; }
 
-struct MalLambda : public MalFn {
+struct MalLambda : public MalFn, public Meta {
   MalLambda(MalSeq* bindings_, MalType* body_, Env* env_, bool is_macro_ = false)
     : bindings(bindings_), body(body_), env(env_), is_macro(is_macro_) { }
   
+  // MalType overrides
   bool equal_impl(MalType*) const { return false; }
   std::string print(bool print_readably = true) const;
 
+  // MalFn overrides
   MalType* apply(MalList* args);
 
+  // Meta overrides
+  Meta* copy() { return new MalLambda(bindings, body, env, is_macro); }
+  
   MalSeq* bindings;
   MalType* body;
   Env* env;
@@ -222,7 +244,8 @@ extern MalNil* nil;
 struct MalEol;
 extern MalEol* eol;
 
-struct MalList : public MalSeq {
+// Meta is on every list node. Not very nice.
+struct MalList : public MalSeq, public Meta {
   MalList(MalType* car_, MalList* cdr_) : car(car_), cdr(cdr_) { }
   
   // MalType overrides
@@ -235,6 +258,9 @@ struct MalList : public MalSeq {
   MalType* first() { return get(0); }
   MalSeq* rest() { return cdr; }
   MalType* nth(int n) { return get(n); }
+  
+  // Meta overrides
+  Meta* copy() { return new MalList(car, cdr); }
   
   // Methods
   template <typename T = MalType> T* get(int ii);
@@ -305,7 +331,7 @@ MalList* reduce(F&& f, MalList* list) {
 
 // Vector
 
-struct MalVector : public MalSeq {
+struct MalVector : public MalSeq, public Meta {
   MalVector(std::vector<MalType*> e_) : e(std::move(e_)) { }
   
   // MalType overrides
@@ -318,6 +344,9 @@ struct MalVector : public MalSeq {
   MalType* first() { return e.empty() ? nil : get(0); }
   MalSeq* rest();
   MalType* nth(int n) { return get(n); }
+  
+  // Meta overrides
+  Meta* copy() { return new MalVector(e); }
   
   // Methods
   template <typename T = MalType>
@@ -396,11 +425,14 @@ struct KeyValue {
   }
 };
 
-struct MalHash : public MalType {
+struct MalHash : public MalType, public Meta {
   MalHash() { };
   MalHash(RBTree<KeyValue> tree_) : tree(std::move(tree_)) { }
+
   bool equal_impl(MalType*) const { throw error("Unimplemented"); }
   std::string print(bool) const;
+
+  Meta* copy() { return new MalHash(tree); }
   
   MalHash* assoc(HashKey* key, MalType* value);
   MalHash* dissoc(HashKey* key);
@@ -413,6 +445,18 @@ struct MalHash : public MalType {
   const RBTree<KeyValue> tree;
 };
 template <> inline std::string print_type<MalHash>() { return "Hash"; }
+
+// Atom
+
+struct Atom : public MalType {
+  Atom(MalType* ref_) : ref(ref_) { }
+  
+  bool equal_impl(MalType*) const { return false; }
+  std::string print(bool) const;
+  
+  MalType* ref;
+};
+template <> inline std::string print_type<Atom>() { return "Atom"; }
 
 // Utilities
 

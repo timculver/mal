@@ -81,6 +81,15 @@ MalType* read_atom(Reader& reader) {
   } else if (reader.peek() == "~@") {
     reader.next();
     return new MalList(_splice_unquote, new MalList(read_form(reader), eol));
+  } else if (reader.peek() == "^") {
+    reader.next();
+    auto newmeta = read_form(reader);
+    auto obj = read_form(reader);
+    return ::list({symbol("with-meta"), obj, newmeta});
+  } else if (reader.peek() == "@") {
+    reader.next();
+    auto atom = read_form(reader);
+    return ::list({symbol("deref"), atom});
   } else if (reader.peek() == ")") {
     throw error("Unmatched `)`");
   } else if (!reader.peek().empty() && reader.peek()[0] == ':') {

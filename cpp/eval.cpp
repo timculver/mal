@@ -55,8 +55,6 @@ MalLambda* is_macro_call(MalType* ast, Env* env) {
 MalType* macroexpand(MalType* ast, Env* env) {
   while (auto lambda = is_macro_call(ast, env)) {
     ast = lambda->apply(cast<MalList>(ast)->cdr);
-//    auto env2 = new Env(env, lambda->bindings, cast<MalList>(ast)->cdr);
-//    ast = EVAL(lambda->body, env2);
   }
   return ast;
 }

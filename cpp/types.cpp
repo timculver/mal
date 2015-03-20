@@ -9,6 +9,8 @@
 
 using namespace std;
 
+Meta::Meta() : meta(nil) { }
+
 bool MalVector::equal_impl(MalType* other_object) const {
   auto other = static_cast<MalVector*>(other_object);
   if (e.size() != other->e.size())
@@ -87,6 +89,12 @@ MalList* concat(MalList* sequences) {
   if (auto vec = match<MalVector>(first))
     return concat2(to_list(vec), concat(rest));
   return cons(first, concat(rest));
+}
+
+string Atom::print(bool print_readably) const {
+  stringstream s;
+  s << "(atom " << ref->print() << ")";
+  return s.str();
 }
 
 string MalHash::print(bool print_readably) const {
