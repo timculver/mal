@@ -94,6 +94,7 @@ struct MalSymbol : public HashKey {
 private:
   MalSymbol(std::string s_);
   friend MalSymbol* symbol(const std::string&);
+  friend MalSymbol* gensym();
 public:
   // MalType overrides
   bool equal_impl(MalType*) const { return false; }
@@ -111,6 +112,7 @@ extern MalSymbol* _quote;
 extern MalSymbol* _quasiquote;
 extern MalSymbol* _unquote;
 extern MalSymbol* _splice_unquote;
+MalSymbol* gensym();
 
 struct MalKeyword : public HashKey {
 private:

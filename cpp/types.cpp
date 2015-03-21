@@ -178,12 +178,14 @@ string Number::print(bool) const {
 }
 
 string MalSymbol::print(bool) const {
-  return s;
+  if (!s.empty())
+    return s;
+  stringstream ss;
+  ss << "G_" << this;
+  return ss.str();
 }
 
 MalSymbol::MalSymbol(std::string s_) : s(std::move(s_)) {
-  if (s.empty())
-    throw error("Empty string can't be converted to Symbol");
 }
 
 MalSymbol* symbol(const string& s) {
@@ -200,6 +202,12 @@ MalSymbol* _quasiquote = symbol("quasiquote");
 MalSymbol* _unquote = symbol("unquote");
 MalSymbol* _splice_unquote = symbol("splice-unquote");
 
+MalSymbol* gensym() {
+  static MalList* gensyms = eol;
+  auto newsym = new MalSymbol("");
+  gensyms = cons(newsym, gensyms);
+  return newsym;
+}
 
 string MalKeyword::print(bool) const {
   return s;

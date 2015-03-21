@@ -16,6 +16,8 @@ Env* core() {
   // Symbol, string, true, false, nil
   env->set(symbol("symbol"), fn1<MalString>([](MalString* s) {
     return symbol(s->s); }));
+  env->set(symbol("gensym"), new NativeFn([](MalList*) {
+    return gensym(); }));
   env->set(symbol("keyword"), fn1<MalString>([](MalString* s) {
     return keyword(s->s); }));
   env->set(symbol("symbol?"), fn1<MalType>([](MalType* obj) -> MalType* {
