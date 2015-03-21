@@ -8,10 +8,10 @@
 
 #include "RBTree.h"
 
-struct MalType;
-struct MalList;
-struct MalSeq;
-struct MalString;
+class MalType;
+class MalList;
+class MalSeq;
+class MalString;
 class Env;
 
 // Create an error message for throwing.
@@ -21,7 +21,8 @@ template <typename T> inline std::string print_type();
 
 bool equal(MalType* a, MalType* b);
 
-struct MalType {
+class MalType {
+public:
   virtual ~MalType() { }
   virtual std::string print(bool print_readably = true) const = 0;
 private:
@@ -32,6 +33,7 @@ private:
 };
 template<> inline std::string print_type<MalType>() { return "Object"; }
 
+// Attempt to convert to T*; throw a descriptive error on failure.
 template <typename T = MalType>
 T* cast(MalType* form) {
   auto ret = dynamic_cast<T*>(form);
@@ -40,42 +42,48 @@ T* cast(MalType* form) {
   return ret;
 }
 
+// Attempt to convert to T*; return nullptr on failure.
 template <typename T>
 T* match(MalType* form) {
   return dynamic_cast<T*>(form);
 }
 
-struct Meta {
+// Mixin for types supporting metadata.
+class Meta {
+public:
   Meta();
-  
+  MalType* meta() { return metadata; }
   virtual Meta* copy() = 0;
-  
   Meta* with_meta(MalType* newmeta) {
     auto newobj = copy();
-    newobj->meta = newmeta;
+    newobj->metadata = newmeta;
     return newobj;
   }
 
-  MalType* meta;
+private:
+  MalType* metadata;
 };
 template<> inline std::string print_type<Meta>() { return "Function/List/Vector/Hash"; }
 
 // true, false
 
-struct MalTrue : public MalType {
+class MalTrue : public MalType {
+public:
   MalTrue() { }
   bool equal_impl(MalType*) const { return true; }
   std::string print(bool = true) const { return "true"; }
 };
 extern MalTrue* _true;
 
-struct MalFalse : public MalType {
+class MalFalse : public MalType {
+public:
   MalFalse() { }
   bool equal_impl(MalType*) const { return true; }
   std::string print(bool = true) const { return "false"; }
 };
 extern MalFalse* _false;
 
+// Convert a C++ bool to a Mal true/false value.
 inline MalType* boolean(bool b) {
   if (b)
     return _true;
@@ -83,15 +91,16 @@ inline MalType* boolean(bool b) {
     return _false;
 }
 
-// Symbol, string, int
+// Symbol, keyword, string, int
 
-struct HashKey : public MalType {
+// Base class for objects that are allowed as hash-map keys.
+class HashKey : public MalType {
+public:
   virtual const std::string& get_string() = 0;
 };
 template<> inline std::string print_type<HashKey>() { return "String or Symbol or Keyword"; }
 
-struct MalSymbol : public HashKey {
-private:
+class MalSymbol : public HashKey {
   MalSymbol(std::string s_);
   friend MalSymbol* symbol(const std::string&);
   friend MalSymbol* gensym();
@@ -103,19 +112,20 @@ public:
   // HashKey override
   const std::string& get_string() { return s; }
 
-  const std::string s;
+private:
+  std::string s;
 };
 template<> inline std::string print_type<MalSymbol>() { return "Symbol"; }
 
 MalSymbol* symbol(const std::string&);
+MalSymbol* gensym();
+
 extern MalSymbol* _quote;
 extern MalSymbol* _quasiquote;
 extern MalSymbol* _unquote;
 extern MalSymbol* _splice_unquote;
-MalSymbol* gensym();
 
-struct MalKeyword : public HashKey {
-private:
+class MalKeyword : public HashKey {
   MalKeyword(std::string s_);
   friend MalKeyword* keyword(const std::string&);
 public:
@@ -126,13 +136,15 @@ public:
   // HashKey override
   const std::string& get_string() { return s; }
   
+private:
   const std::string s;
 };
 template<> inline std::string print_type<MalKeyword>() { return "Keyword"; }
 
 MalKeyword* keyword(const std::string&);
 
-struct MalString : public HashKey {
+class MalString : public HashKey {
+public:
   MalString(std::string(s_)) : s(std::move(s_)) { }
   
   // MalType overrides
@@ -143,16 +155,19 @@ struct MalString : public HashKey {
   
   // HashKey override
   const std::string& get_string() { return s; }
-  
-  const std::string s;
 
-  static std::string print_string(std::string, bool print_readably);
-  static std::string unescape(std::string);
-  static std::string escape(std::string);
+  const std::string s;
 };
 template<> inline std::string print_type<MalString>() { return "String"; }
 
-struct Number : public MalType {
+std::string print_string(std::string, bool print_readably);
+std::string unescape(std::string);
+std::string escape(std::string);
+
+// Number
+
+class Number : public MalType {
+public:
   Number(double v_) : v(v_) { }
   bool equal_impl(MalType* other) const {
     return v == static_cast<Number*>(other)->v;
@@ -165,12 +180,14 @@ template<> inline std::string print_type<Number>() { return "Int"; }
 
 // Functions (native and lambda)
 
-struct MalFn : public MalType {
+class MalFn : public MalType {
+public:
   virtual MalType* apply(MalList* args) = 0;
 };
 template<> inline std::string print_type<MalFn>() { return "Function"; }
 
-struct NativeFn : public MalFn, public Meta {
+class NativeFn : public MalFn, public Meta {
+public:
   template <typename F>
   NativeFn(F f_) : f(std::move(f_)) { }
 
@@ -186,7 +203,8 @@ private:
 };
 template<> inline std::string print_type<NativeFn>() { return "Function"; }
 
-struct MalLambda : public MalFn, public Meta {
+class MalLambda : public MalFn, public Meta {
+public:
   MalLambda(MalSeq* bindings_, MalType* body_, Env* env_, bool is_macro_ = false)
     : bindings(bindings_), body(body_), env(env_), is_macro(is_macro_) { }
   
@@ -209,7 +227,8 @@ template<> inline std::string print_type<MalLambda>() { return "Lambda/Macro"; }
 
 // Sequence
 
-struct MalSeq : public MalType {
+class MalSeq : public MalType {
+public:
   virtual bool empty() = 0;
   virtual int count() = 0;
   virtual MalType* first() = 0;
@@ -223,7 +242,8 @@ template <> inline std::string print_type<MalSeq>() { return "Sequence"; }
 // `nil` is not the empty list; it is distinct from '(). In sequence contexts
 // it is an empty sequence, to be treated like '() or []. It is also the
 // return value of a function with only side effects.
-struct MalNil : public MalSeq {
+class MalNil : public MalSeq {
+public:
   MalNil() { }
   
   // MalType overrides
@@ -240,18 +260,17 @@ struct MalNil : public MalSeq {
 };
 extern MalNil* nil;
 
-
 // List
-
-struct MalList;
 
 // Clojure/Mal 'nil' has special behavior in many places and isn't suitable
 // for end-of-list. I introduce 'eol' as the end-of-list sentinel. I don't
 // represent any Mal value with nullptr.
+class MalList;
 extern MalList* eol;
 
-// Meta is on every list node. Not very nice.
-struct MalList : public MalSeq, public Meta {
+// Meta is on every list node, which is a bit wasteful.
+class MalList : public MalSeq, public Meta {
+public:
   MalList(MalType* car_, MalList* cdr_) : car(car_), cdr(cdr_) { }
   
   // MalType overrides
@@ -273,18 +292,10 @@ struct MalList : public MalSeq, public Meta {
   int size();
   template <typename F> void for_each(F&& f);
   
-  MalType *car;
-  MalList *cdr;
+  MalType* const car;
+  MalList* const cdr;
 };
 template <> inline std::string print_type<MalList>() { return "List"; }
-
-inline MalType* car(MalList* list) {
-  return list->car;
-}
-
-inline MalList* cdr(MalList* list) {
-  return list->cdr;
-}
 
 inline MalList* cons(MalType* first, MalList* rest) {
   return new MalList(first, rest);
@@ -324,7 +335,8 @@ MalList* reduce(F&& f, MalList* list) {
 
 // Vector
 
-struct MalVector : public MalSeq, public Meta {
+class MalVector : public MalSeq, public Meta {
+public:
   MalVector(std::vector<MalType*> e_) : e(std::move(e_)) { }
   
   // MalType overrides
@@ -406,6 +418,7 @@ MalVector* reduce(F&& f, MalVector* vec, MalType* base) {
 
 struct KeyValue {
   HashKey* key; // Internally, key=nullptr is a sentinel in RBTree::find().
+                // I should have used RBMap.
   MalType* value;
   
   bool operator<(const KeyValue& other) const {
@@ -418,7 +431,8 @@ struct KeyValue {
   }
 };
 
-struct MalHash : public MalType, public Meta {
+class MalHash : public MalType, public Meta {
+public:
   MalHash() { };
   MalHash(RBTree<KeyValue> tree_) : tree(std::move(tree_)) { }
 
@@ -441,7 +455,8 @@ template <> inline std::string print_type<MalHash>() { return "Hash"; }
 
 // Atom
 
-struct Atom : public MalType {
+class Atom : public MalType {
+public:
   Atom(MalType* ref_) : ref(ref_) { }
   
   bool equal_impl(MalType*) const { return false; }

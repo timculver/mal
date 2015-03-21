@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
   
   if (argc >= 2) {
     try {
-      rep("(load-file \"" + MalString::escape(string(argv[1])) + "\")", repl_env);
+      rep("(load-file \"" + escape(string(argv[1])) + "\")", repl_env);
     } catch (MalType* error) {
       cout << error->print(false) << "\n";
       return 1;

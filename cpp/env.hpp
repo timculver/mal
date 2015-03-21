@@ -41,10 +41,10 @@ public:
     }
   }
   void set(MalSymbol* k, MalType* v) {
-    table[k->s] = v;
+    table[k->get_string()] = v;
   }
   Env* find(MalSymbol* k) {
-    if (table.find(k->s) != table.end())
+    if (table.find(k->get_string()) != table.end())
       return this;
     else
       return outer ? outer->find(k) : nullptr;
@@ -52,14 +52,14 @@ public:
   MalType* get(MalSymbol* k) {
     auto result = lookup(k);
     if (result == nullptr)
-      throw error("'" + k->s + "' not found");
+      throw error("'" + k->get_string() + "' not found");
     return result;
   }
   MalType* lookup(MalSymbol* k) {
     Env* env = find(k);
     if (env == nullptr)
       return nullptr;
-    return env->table[k->s];
+    return env->table[k->get_string()];
   }
 
 private:

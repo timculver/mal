@@ -9,7 +9,7 @@
 
 using namespace std;
 
-Meta::Meta() : meta(nil) { }
+Meta::Meta() : metadata(nil) { }
 
 bool MalVector::equal_impl(MalType* other_object) const {
   auto other = static_cast<MalVector*>(other_object);
@@ -38,7 +38,7 @@ MalSeq* MalVector::rest() {
   if (e.empty())
     return eol;
   else
-    return cdr(to_list(this));
+    return to_list(this)->cdr;
 }
 
 MalList* eol = new MalList(nullptr, nullptr);
@@ -77,14 +77,14 @@ bool MalList::equal_impl(MalType* other_obj) const {
 MalList* concat2(MalList* a, MalList* b) {
   if (a == eol)
     return b;
-  return cons(car(a), concat2(cdr(a), b));
+  return cons(a->car, concat2(a->cdr, b));
 }
 
 MalList* concat(MalList* sequences) {
   if (sequences == eol)
     return eol;
-  auto first = car(sequences);
-  auto rest = cdr(sequences);
+  auto first = sequences->car;
+  auto rest = sequences->cdr;
   if (auto list = match<MalList>(first))
     return concat2(list, concat(rest));
   if (auto vec = match<MalVector>(first))
@@ -205,6 +205,7 @@ MalSymbol* _splice_unquote = symbol("splice-unquote");
 MalSymbol* gensym() {
   static MalList* gensyms = eol;
   auto newsym = new MalSymbol("");
+  newsym->s = newsym->print();
   gensyms = cons(newsym, gensyms);
   return newsym;
 }
@@ -232,19 +233,19 @@ string MalString::print(bool print_readably) const {
   return print_string(s, print_readably);
 }
 
-string MalString::print_string(string s, bool print_readably) {
+string print_string(string s, bool print_readably) {
   if (print_readably)
     return string("\"") + escape(move(s)) + "\"";
   else
     return s;
 }
 
-string MalString::unescape(string s) {
+string unescape(string s) {
   static regex re1("\\\\\""), re2("\\\\\\\\"), re3("\\\\n");
   return regex_replace(regex_replace(regex_replace(s, re1, "\""), re2, "\\"), re3, "\n");
 }
 
-string MalString::escape(string s) {
+string escape(string s) {
   static regex re1("\""), re2("\\\\"), re3("\\n");
   return regex_replace(regex_replace(regex_replace(s, re2, "\\\\"), re1, "\\\""), re3, "\\n");
 }

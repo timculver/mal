@@ -53,7 +53,7 @@ MalType* read_atom(Reader& reader) {
   if (regex_match(reader.peek(), match, string_regex)) {
     string s = match[1];
     reader.next();
-    return new MalString(MalString::unescape(s));
+    return new MalString(unescape(s));
   }
   static regex int_regex("^-?[0-9.][-0-9.e]*");
   if (regex_match(reader.peek(), match, int_regex)) {

@@ -171,7 +171,7 @@ MalType* EVAL(MalType* form, Env* env) {
           auto bindings = rest->get<MalSeq>(0);
           auto body = rest->get(1);
           if (rest->size() > 2)
-            throw error("Too many arguments for " + _fn->s);
+            throw error("Too many arguments for " + _fn->get_string());
           return new MalLambda(bindings, body, env);
         }
       }

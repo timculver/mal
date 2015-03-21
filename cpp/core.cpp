@@ -44,7 +44,7 @@ Env* core() {
   // Functions
   env->set(symbol("apply"), new NativeFn([](MalList* args) {
     auto f = cast<MalFn>(args->get(0));
-    return f->apply(concat(cdr(args))); }));
+    return f->apply(concat(args->cdr)); }));
 
   // Lists
   env->set(symbol("list"), new NativeFn([](MalList* args) { return args; }));
@@ -224,7 +224,7 @@ Env* core() {
   
   // Metadata
   env->set(symbol("meta"), fn1<Meta>([](Meta* m) -> MalType* {
-    return m->meta; }));
+    return m->meta(); }));
   env->set(symbol("with-meta"), new NativeFn([](MalList* args) -> MalType* {
     auto obj = dynamic_cast<Meta*>(args->get(0));
     auto newmeta = args->get(1);
