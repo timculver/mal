@@ -29,6 +29,11 @@ int main(int argc, char* argv[]) {
   rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", repl_env);
   rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))", repl_env);
 
+  MalList* argv_list = eol;
+  for (int ii = argc - 1; ii >= 2; ii--)
+    argv_list = new MalList(new MalString(string(argv[ii])), argv_list);
+  repl_env->set(symbol("*ARGV*"), argv_list);
+  
   if (argc >= 2) {
     try {
       rep("(load-file \"" + MalString::escape(string(argv[1])) + "\")", repl_env);
@@ -39,11 +44,6 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  MalList* argv_list = eol;
-  for (int ii = argc - 1; ii >= 2; ii--)
-    argv_list = new MalList(new MalString(string(argv[ii])), argv_list);
-  repl_env->set(symbol("*ARGV*"), argv_list);
-  
   rep("(println (str \"Mal [\" *host-language* \"]\"))", repl_env);
   
   while (!cin.eof()) {

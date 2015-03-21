@@ -228,8 +228,6 @@ MalKeyword* keyword(const string& s) {
   return k;
 }
 
-
-
 string MalString::print(bool print_readably) const {
   return print_string(s, print_readably);
 }
@@ -263,7 +261,6 @@ MalType* MalLambda::apply(MalList* args) {
   auto exec_env = new Env(env, bindings, args);
   return EVAL(body, exec_env);
 }
-
 
 bool equal(MalType* a, MalType* b);
 

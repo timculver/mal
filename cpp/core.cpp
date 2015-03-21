@@ -151,6 +151,8 @@ Env* core() {
   // Atom
   env->set(symbol("atom"), fn1([](MalType* ref) {
     return new Atom(ref); }));
+  env->set(symbol("atom?"), fn1([](MalType* arg) {
+    return boolean(match<Atom>(arg)); }));
   env->set(symbol("deref"), fn1<Atom>([](Atom* atom) {
     return atom->ref; }));
   env->set(symbol("reset!"), fn2<Atom, MalType>([](Atom* atom, MalType* newref) {
