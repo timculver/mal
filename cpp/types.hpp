@@ -241,8 +241,12 @@ extern MalNil* nil;
 
 // List
 
-struct MalEol;
-extern MalEol* eol;
+struct MalList;
+
+// Clojure/Mal 'nil' has special behavior in many places and isn't suitable
+// for end-of-list. I introduce 'eol' as the end-of-list sentinel. I don't
+// represent any Mal value with nullptr.
+extern MalList* eol;
 
 // Meta is on every list node. Not very nice.
 struct MalList : public MalSeq, public Meta {
@@ -253,10 +257,10 @@ struct MalList : public MalSeq, public Meta {
   std::string print(bool print_readably = true) const;
 
   // MalSeq overrides
-  bool empty() { return false; }
+  bool empty() { return this == eol; }
   int count() { return size(); }
-  MalType* first() { return get(0); }
-  MalSeq* rest() { return cdr; }
+  MalType* first() { return empty() ? nil : get(0); }
+  MalSeq* rest() { if (empty()) return eol; return cdr; }
   MalType* nth(int n) { return get(n); }
   
   // Meta overrides
@@ -289,19 +293,6 @@ MalList* concat(MalList* lists);
 
 // Concatenate two lists.
 MalList* concat2(MalList* a, MalList* b);
-
-// End-of-list. Not a Clojure/Mal concept--it is my implementation of
-// an empty list.
-struct MalEol : public MalList {
-  MalEol() : MalList(nullptr, nullptr) { }
-
-  // MalSeq overrides
-  bool empty() { return true; }
-  int count() { return 0; }
-  MalType* first() { return nil; }
-  MalSeq* rest() { return this; }
-  MalType* nth(int) { throw error("index out of range"); }
-};
 
 template <typename T>
 T* MalList::get(int ii) {

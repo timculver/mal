@@ -41,7 +41,7 @@ MalSeq* MalVector::rest() {
     return cdr(to_list(this));
 }
 
-MalEol* eol = new MalEol();
+MalList* eol = new MalList(nullptr, nullptr);
 MalNil* nil = new MalNil();
 MalTrue* _true = new MalTrue();
 MalFalse* _false = new MalFalse();
@@ -69,7 +69,8 @@ int MalList::size() {
 
 bool MalList::equal_impl(MalType* other_obj) const {
   MalList* other = static_cast<MalList*>(other_obj);
-  // The typeid check has already taken care of all eol cases.
+  if (this == eol || other == eol)
+    return false;
   return ::equal(car, other->car) && ::equal(cdr, other->cdr);
 }
 
