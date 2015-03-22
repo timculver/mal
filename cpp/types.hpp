@@ -17,7 +17,7 @@ class Env;
 // Create an error message for throwing.
 MalString* error(std::string s);
 
-template <typename T> inline std::string print_type();
+template <typename T> T* cast(MalType* form);
 
 bool equal(MalType* a, MalType* b);
 
@@ -31,22 +31,6 @@ private:
   virtual bool equal_impl(MalType*) const = 0;
   friend bool ::equal(MalType*, MalType*);
 };
-template<> inline std::string print_type<MalType>() { return "Object"; }
-
-// Attempt to convert to T*; throw a descriptive error on failure.
-template <typename T = MalType>
-T* cast(MalType* form) {
-  auto ret = dynamic_cast<T*>(form);
-  if (!ret)
-    throw error("Expected " + print_type<T>() + ", found `" + form->print() + "`");
-  return ret;
-}
-
-// Attempt to convert to T*; return nullptr on failure.
-template <typename T>
-T* match(MalType* form) {
-  return dynamic_cast<T*>(form);
-}
 
 // Mixin for types supporting metadata.
 class Meta {
@@ -63,7 +47,6 @@ public:
 private:
   MalType* metadata;
 };
-template<> inline std::string print_type<Meta>() { return "Function/List/Vector/Hash"; }
 
 // true, false
 
@@ -98,24 +81,19 @@ class HashKey : public MalType {
 public:
   virtual const std::string& get_string() = 0;
 };
-template<> inline std::string print_type<HashKey>() { return "String or Symbol or Keyword"; }
 
 class MalSymbol : public HashKey {
   MalSymbol(std::string s_);
   friend MalSymbol* symbol(const std::string&);
   friend MalSymbol* gensym();
 public:
-  // MalType overrides
-  bool equal_impl(MalType*) const { return false; }
-  std::string print(bool print_readably = true) const;
-  
-  // HashKey override
-  const std::string& get_string() { return s; }
+  bool equal_impl(MalType*) const override { return false; }
+  std::string print(bool print_readably = true) const override;
+  const std::string& get_string() override { return s; }
 
 private:
   std::string s;
 };
-template<> inline std::string print_type<MalSymbol>() { return "Symbol"; }
 
 MalSymbol* symbol(const std::string&);
 MalSymbol* gensym();
@@ -129,36 +107,27 @@ class MalKeyword : public HashKey {
   MalKeyword(std::string s_);
   friend MalKeyword* keyword(const std::string&);
 public:
-  // MalType overrides
-  bool equal_impl(MalType*) const { return false; }
-  std::string print(bool print_readably = true) const;
-  
-  // HashKey override
-  const std::string& get_string() { return s; }
+  bool equal_impl(MalType*) const override { return false; }
+  std::string print(bool print_readably = true) const override;
+  const std::string& get_string() override { return s; }
   
 private:
   const std::string s;
 };
-template<> inline std::string print_type<MalKeyword>() { return "Keyword"; }
 
 MalKeyword* keyword(const std::string&);
 
 class MalString : public HashKey {
 public:
   MalString(std::string(s_)) : s(std::move(s_)) { }
-  
-  // MalType overrides
-  bool equal_impl(MalType* other) const {
+  bool equal_impl(MalType* other) const override {
     return s == static_cast<MalString*>(other)->s;
   }
   std::string print(bool print_readably = true) const;
-  
-  // HashKey override
-  const std::string& get_string() { return s; }
+  const std::string& get_string() override { return s; }
 
   const std::string s;
 };
-template<> inline std::string print_type<MalString>() { return "String"; }
 
 std::string print_string(std::string, bool print_readably);
 std::string unescape(std::string);
@@ -169,14 +138,13 @@ std::string escape(std::string);
 class Number : public MalType {
 public:
   Number(double v_) : v(v_) { }
-  bool equal_impl(MalType* other) const {
+  bool equal_impl(MalType* other) const override {
     return v == static_cast<Number*>(other)->v;
   }
-  std::string print(bool = true) const;
+  std::string print(bool = true) const override;
   
   const double v;
 };
-template<> inline std::string print_type<Number>() { return "Int"; }
 
 // Functions (native and lambda)
 
@@ -184,46 +152,34 @@ class MalFn : public MalType {
 public:
   virtual MalType* apply(MalList* args) = 0;
 };
-template<> inline std::string print_type<MalFn>() { return "Function"; }
 
 class NativeFn : public MalFn, public Meta {
 public:
   template <typename F>
   NativeFn(F f_) : f(std::move(f_)) { }
-
-  bool equal_impl(MalType*) const { return false; }
-  std::string print(bool print_readably = true) const;
-
-  MalType* apply(MalList* args) { return f(args); }
-  
-  Meta* copy() { return new NativeFn(f); }
+  bool equal_impl(MalType*) const override { return false; }
+  std::string print(bool print_readably = true) const override;
+  MalType* apply(MalList* args) override { return f(args); }
+  Meta* copy() override { return new NativeFn(f); }
 
 private:
   const std::function<MalType*(MalList*)> f;
 };
-template<> inline std::string print_type<NativeFn>() { return "Function"; }
 
 class MalLambda : public MalFn, public Meta {
 public:
   MalLambda(MalSeq* bindings_, MalType* body_, Env* env_, bool is_macro_ = false)
     : bindings(bindings_), body(body_), env(env_), is_macro(is_macro_) { }
-  
-  // MalType overrides
-  bool equal_impl(MalType*) const { return false; }
-  std::string print(bool print_readably = true) const;
-
-  // MalFn overrides
-  MalType* apply(MalList* args);
-
-  // Meta overrides
-  Meta* copy() { return new MalLambda(bindings, body, env, is_macro); }
+  bool equal_impl(MalType*) const override { return false; }
+  std::string print(bool print_readably = true) const override;
+  MalType* apply(MalList* args) override;
+  Meta* copy() override { return new MalLambda(bindings, body, env, is_macro); }
   
   MalSeq* bindings;
   MalType* body;
   Env* env;
   bool is_macro;
 };
-template<> inline std::string print_type<MalLambda>() { return "Lambda/Macro"; }
 
 // Sequence
 
@@ -235,7 +191,6 @@ public:
   virtual MalSeq* rest() = 0;
   virtual MalType* nth(int n) = 0;
 };
-template <> inline std::string print_type<MalSeq>() { return "Sequence"; }
 
 // Nil (empty sequence)
 
@@ -245,18 +200,13 @@ template <> inline std::string print_type<MalSeq>() { return "Sequence"; }
 class MalNil : public MalSeq {
 public:
   MalNil() { }
-  
-  // MalType overrides
-  bool equal_impl(MalType*) const { return true; }
-  
-  // MalSeq overrides
-  bool empty() { return true; }
-  int count() { return 0; }
-  MalType* first() { return this; }
-  MalSeq* rest() { return this; }
-  MalType* nth(int n) { throw error("Empty Sequence"); }
-  
-  std::string print(bool = true) const { return "nil"; }
+  bool equal_impl(MalType*) const override { return true; }
+  bool empty() override { return true; }
+  int count() override { return 0; }
+  MalType* first() override { return this; }
+  MalSeq* rest() override { return this; }
+  MalType* nth(int n) override { throw error("Empty Sequence"); }
+  std::string print(bool = true) const override { return "nil"; }
 };
 extern MalNil* nil;
 
@@ -272,22 +222,14 @@ extern MalList* eol;
 class MalList : public MalSeq, public Meta {
 public:
   MalList(MalType* car_, MalList* cdr_) : car(car_), cdr(cdr_) { }
-  
-  // MalType overrides
-  bool equal_impl(MalType*) const;
-  std::string print(bool print_readably = true) const;
-
-  // MalSeq overrides
-  bool empty() { return this == eol; }
-  int count() { return size(); }
-  MalType* first() { return empty() ? nil : get(0); }
-  MalSeq* rest() { if (empty()) return eol; return cdr; }
-  MalType* nth(int n) { return get(n); }
-  
-  // Meta overrides
-  Meta* copy() { return new MalList(car, cdr); }
-  
-  // Methods
+  bool equal_impl(MalType*) const override;
+  std::string print(bool print_readably = true) const override;
+  bool empty() override { return this == eol; }
+  int count() override { return size(); }
+  MalType* first() override { return empty() ? nil : get(0); }
+  MalSeq* rest() override { if (empty()) return eol; return cdr; }
+  MalType* nth(int n) override { return get(n); }
+  Meta* copy() override { return new MalList(car, cdr); }
   template <typename T = MalType> T* get(int ii);
   int size();
   template <typename F> void for_each(F&& f);
@@ -295,7 +237,6 @@ public:
   MalType* const car;
   MalList* const cdr;
 };
-template <> inline std::string print_type<MalList>() { return "List"; }
 
 inline MalList* cons(MalType* first, MalList* rest) {
   return new MalList(first, rest);
@@ -338,29 +279,21 @@ MalList* reduce(F&& f, MalList* list) {
 class MalVector : public MalSeq, public Meta {
 public:
   MalVector(std::vector<MalType*> e_) : e(std::move(e_)) { }
-  
-  // MalType overrides
-  bool equal_impl(MalType*) const;
-  std::string print(bool print_readably = true) const;
-  
-  // MalSeq overrides
-  bool empty() { return e.empty(); }
-  int count() { return (int)e.size(); }
-  MalType* first() { return e.empty() ? nil : get(0); }
-  MalSeq* rest();
-  MalType* nth(int n) { return get(n); }
-  
-  // Meta overrides
-  Meta* copy() { return new MalVector(e); }
-  
-  // Methods
+  bool equal_impl(MalType*) const override;
+  std::string print(bool print_readably = true) const override;
+  bool empty() override { return e.empty(); }
+  int count() override { return (int)e.size(); }
+  MalType* first() override { return e.empty() ? nil : get(0); }
+  MalSeq* rest() override;
+  MalType* nth(int n) override { return get(n); }
+  Meta* copy() override { return new MalVector(e); }
   template <typename T = MalType>
   T* get(int ii) {
     if (ii >= e.size())
-      throw error("Expected " + print_type<T>() + " at position " + std::to_string(ii) + " in list: `" + print() + "`");
+      throw error(std::string("Expected ") + typeid(T).name() + " at position " + std::to_string(ii) + " in list: `" + print() + "`");
     auto ret = dynamic_cast<T*>(e[ii]);
     if (!ret)
-      throw error("Expected " + print_type<T>() + " at position " + std::to_string(ii) + " in list: `" + print() + "`");
+      throw error(std::string("Expected ") + typeid(T).name() + " at position " + std::to_string(ii) + " in list: `" + print() + "`");
     return ret;
   }
   int size() {
@@ -374,7 +307,6 @@ public:
   
   const std::vector<MalType*> e;
 };
-template<> inline std::string print_type<MalVector>() { return "List"; }
 
 inline MalList* to_list(MalVector* vec) {
   MalList* list = eol;
@@ -435,12 +367,9 @@ class MalHash : public MalType, public Meta {
 public:
   MalHash() { };
   MalHash(RBTree<KeyValue> tree_) : tree(std::move(tree_)) { }
-
-  bool equal_impl(MalType*) const { throw error("Unimplemented"); }
-  std::string print(bool) const;
-
-  Meta* copy() { return new MalHash(tree); }
-  
+  bool equal_impl(MalType*) const override { throw error("Unimplemented"); }
+  std::string print(bool) const override;
+  Meta* copy() override { return new MalHash(tree); }
   MalHash* assoc(HashKey* key, MalType* value);
   MalHash* dissoc(HashKey* key);
   MalHash* dissoc_many(MalList* keys);
@@ -451,22 +380,34 @@ public:
   
   const RBTree<KeyValue> tree;
 };
-template <> inline std::string print_type<MalHash>() { return "Hash"; }
 
 // Atom
 
 class Atom : public MalType {
 public:
   Atom(MalType* ref_) : ref(ref_) { }
-  
-  bool equal_impl(MalType*) const { return false; }
-  std::string print(bool) const;
+  bool equal_impl(MalType*) const override { return false; }
+  std::string print(bool) const override;
   
   MalType* ref;
 };
-template <> inline std::string print_type<Atom>() { return "Atom"; }
 
 // Utilities
+
+// Attempt to convert to T*; throw a descriptive error on failure.
+template <typename T = MalType>
+T* cast(MalType* form) {
+  auto ret = dynamic_cast<T*>(form);
+  if (!ret)
+    throw error(std::string("Expected ") + typeid(T).name() + ", found `" + form->print() + "`");
+  return ret;
+}
+
+// Attempt to convert to T*; return nullptr on failure.
+template <typename T>
+T* match(MalType* form) {
+  return dynamic_cast<T*>(form);
+}
 
 template <typename F> void for_each(MalSeq* seq, F&& f) {
   if (auto list = match<MalList>(seq))
