@@ -4,10 +4,11 @@
 
 Mal is a Clojure inspired Lisp interpreter.
 
-Mal is implemented in 26 different languages:
+Mal is implemented in 29 different languages:
 
 * Bash shell
 * C
+* C++
 * C#
 * Clojure
 * CoffeeScript
@@ -21,6 +22,7 @@ Mal is implemented in 26 different languages:
 * mal itself
 * MATLAB
 * [miniMAL](https://github.com/kanaka/miniMAL)
+* Nim
 * OCaml
 * Perl
 * PHP
@@ -31,14 +33,15 @@ Mal is implemented in 26 different languages:
 * Ruby
 * Rust
 * Scala
+* Swift
 * Visual Basic.NET
 
 
-Mal is a learning tool. See the ([make-a-lisp process
-guide](process/guide.md)).  Each implementation of mal is separated
-into 11 incremental, self-contained (and testable) steps that
-demonstrate core concepts of Lisp. The last step is capable of
-self-hosting (running the mal implemenation of mal).
+Mal is a learning tool. See the [make-a-lisp process
+guide](process/guide.md). Each implementation of mal is separated into
+11 incremental, self-contained (and testable) steps that demonstrate
+core concepts of Lisp. The last step is capable of self-hosting
+(running the mal implementation of mal).
 
 The mal (make a lisp) steps are:
 
@@ -60,6 +63,12 @@ Clojure West 2014 (unfortunately there is no video). See
 mal/clojurewest2014.mal for the presentation that was given at the
 conference (yes the presentation is a mal program).
 
+If you are interesting in creating a mal implementation (or just
+interested in using mal for something), please drop by the #mal
+channel on freenode. In addition to the [make-a-lisp process
+guide](process/guide.md) there is also a [mal/make-a-lisp
+FAQ](docs/FAQ.md) where I attempt to answer some common questions.
+
 ## Building/running implementations
 
 ### Bash 4
@@ -79,6 +88,23 @@ cd c
 make
 ./stepX_YYY
 ```
+
+### C++
+
+*The C++ implementation was created by [Stephen Thirlwall (sdt)](https://github.com/sdt)*
+
+The C++ implementation of mal requires g++-4.9 or clang++-3.5 and
+a readline compatible library to build. See the `cpp/README.md` for
+more details:
+
+```
+cd cpp
+make
+    # OR
+make CXX=clang++-3.5
+./stepX_YYY
+```
+
 
 ### C# ###
 
@@ -109,6 +135,8 @@ coffee ./stepX_YYY
 ```
 
 ### Forth
+
+*The Forth implementation was created by [Chris Houser (chouser)](https://github.com/chouser)*
 
 ```
 cd forth
@@ -191,7 +219,24 @@ cd make
 make -f stepX_YYY.mk
 ```
 
+### Nim 0.10.3
+
+*The Nim implementation was created by [Dennis Felsing (def-)](https://github.com/def-)*
+
+Running the Nim implementation of mal requires Nim's current devel branch
+(0.10.3) or later, and the nre library installed.
+
+```
+cd nim
+make
+  # OR
+nimble build
+./stepX_YYY
+```
+
 ### OCaml 4.01.0
+
+*The OCaml implementation was created by [Chris Houser (chouser)](https://github.com/chouser)*
 
 ```
 cd ocaml
@@ -284,7 +329,7 @@ compiler/interpreter to run.
 
 ```
 cd racket
-./stepX_YYY.rb
+./stepX_YYY.rkt
 ```
 
 ### Ruby (1.9+)
@@ -294,17 +339,14 @@ cd ruby
 ruby stepX_YYY.rb
 ```
 
-### Rust (0.13)
+### Rust (1.0.0 nightly)
 
 The rust implementation of mal requires the rust compiler and build
 tool (cargo) to build.
 
 ```
 cd rust
-# Need patched pcre lib (should be temporary)
-git clone https://github.com/kanaka/rust-pcre cadencemarseille-pcre
-cargo build
-./target/stepX_YYY
+cargo run --release --bin stepX_YYY
 ```
 
 ### Scala ###
@@ -317,6 +359,19 @@ sbt 'run-main stepX_YYY'
     # OR
 sbt compile
 scala -classpath target/scala*/classes stepX_YYY
+```
+
+### Swift
+
+*The Swift implementation was created by [Keith Rollin](https://github.com/keith-rollin)*
+
+The Swift implemenation of mal requires the Swift compiler (XCode) to
+build.
+
+```
+cd swift
+make
+./stepX_YYY
 ```
 
 ### Visual Basic.NET ###
@@ -340,9 +395,9 @@ mono ./stepX_YYY.exe
 The are nearly 500 generic functional tests (for all implementations)
 in the `tests/` directory. Each step has a corresponding test file
 containing tests specific to that step. The `runtest.py` test harness
-uses pexpect to launch a Mal step implementation and then feeds the
-tests one at a time to the implementation and compares the
-output/return value to the expected output/return value.
+launches a Mal step implementation and then feeds the tests one at
+a time to the implementation and compares the output/return value to
+the expected output/return value.
 
 To simplify the process of running tests, a top level Makefile is
 provided with convenient test targets.
@@ -400,6 +455,12 @@ make MAL_IMPL=python test^mal^step2
 
 ### Performance tests
 
+Warning: These performance tests are neither statistically valid nor
+comprehensive; runtime performance is a not a primary goal of mal. If
+you draw any serious conclusions from these performance tests, then
+please contact me about some amazing oceanfront property in Kansas
+that I'm willing to sell you for cheap.
+
 * To run performance tests against a single implementation:
 ```
 make perf^IMPL
@@ -431,6 +492,44 @@ make stats-lisp^IMPL
 # e.g.
 make stats-lisp^js
 ```
+
+## Docker test environment
+
+There is a Dockerfile included in the `tests/docker` directory that
+builds a docker image based on Ubuntu Utopic that contains everything
+needed to run tests against all the implementations (except for MATLAB
+which is proprietary/licensed).
+
+Build the the docker image using a provided script. WARNING: this will
+likely take over an hour to build from scratch and use more 3 GB of disk:
+```bash
+./tests/docker-build.sh
+```
+
+Launch a docker container from that image built above. This will
+volume mount the mal directory to `/mal` and then give you a bash
+prompt in the container. You can then run individual mal
+implementations and tests:
+```bash
+./tests/docker-run.sh
+```
+
+You can also specify a command to run within the container. For
+example, to run step2 tests for every implementation (except MATLAB):
+```bash
+./tests/docker-run.sh make SKIP_IMPLS="matlab" test^step2
+```
+
+**Notes**:
+* JVM-based language implementations (Java, Clojure, Scala): you will
+  need to run these implementations once manually first before you can
+  run tests because runtime dependencies need to be downloaded to
+  avoid the tests timing out. These dependencies are download to
+  dot-files in the /mal directory so they will persist between runs.
+* Compiled languages: if your host system is different enough from
+  Ubuntu Utopic then you may need to re-compile your compiled
+  languages from within the container to avoid linker version
+  mismatches.
 
 
 ## License

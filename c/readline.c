@@ -8,15 +8,14 @@
   #include <readline/tilde.h>
 #else
   #include <editline/readline.h>
-  #include <editline/history.h>
 #endif
 
 int history_loaded = 0;
 
 char HISTORY_FILE[] = "~/.mal-history";
 
-int load_history() {
-    if (history_loaded) { return 0; }
+void load_history() {
+    if (history_loaded) { return; }
     int ret;
     char *hf = tilde_expand(HISTORY_FILE);
     if (access(hf, F_OK) != -1) {
@@ -38,15 +37,17 @@ int load_history() {
     free(hf);
 }
 
-int append_to_history() {
+void append_to_history() {
     char *hf = tilde_expand(HISTORY_FILE);
 #ifdef USE_READLINE
     append_history(1, hf);
 #else
     HIST_ENTRY *he = history_get(history_length-1);
     FILE *fp = fopen(hf, "a");
-    fprintf(fp, "%s\n", he->line);
-    fclose(fp);
+    if (fp) {
+        fprintf(fp, "%s\n", he->line);
+        fclose(fp);
+    }
 #endif
     free(hf);
 }
