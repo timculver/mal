@@ -1,0 +1,15 @@
+# brew tap paulp/extras
+# brew install stdbuf
+
+[
+ # read
+ [user> ]P?
+ # eval
+ # print
+ p
+ # loop
+ lRx
+]sR
+
+# Begin repl
+lRx
