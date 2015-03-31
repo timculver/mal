@@ -1,15 +1,40 @@
-# brew tap paulp/extras
-# brew install stdbuf
-
+# L() : Reverse the entire main stack into T
 [
- # read
- [user> ]P?
- # eval
- # print
- p
- # loop
- lRx
-]sR
+ zSA      # A = stack depth
+ [
+  ST      # push-store -> T
+  z0<B    # while stack
+ ]sB lBx
+ LAST     # push num tokens -> T
+]sL
 
-# Begin repl
-lRx
+# P() : Print the whole stack in T
+[
+ LTsA     # A = num tokens to pop
+ 0sF      # F = counting expressions printed so far
+ [        # B: loop while A > 0
+  [       # C(str, chars...) : Print a typed symbol from T
+   LT lA1-sA  # load str <- T
+   dZsD       # D = string length
+   Ps@        # print str and pop
+   [          # E: loop over chars
+    LTs@ lA1-sA  # load char <- T
+    lD1-sD       # D -= 1
+    lD0<E        # goto E while D > 0
+   ]sE lEx 
+  ]sC
+  [[ ]P]sG    # G() : print a space
+  lF0!=G      # Print a space unless it's the first expression
+  lF1+sF      # F += 1
+  LT lA1-sA   # load type <- T
+  d1=C        # if type = 1, print symbol
+  lA0<B       # goto B while A > 0
+ ]sB lBx
+]sP
+
+# R() : rep()
+[
+ lLx          # L(tokens...) -> T
+ lPx          # P()
+ []p         # print ascii 26 as a signal to flush
+]sR

@@ -1,0 +1,6 @@
+# Type tags
+#  0: number
+#  1: symbol (string followed by its chars as numbers)
+#  2: string (string)
+#  3: lambda (string containing a macro)
+#  4: cons cell (two addresses)
