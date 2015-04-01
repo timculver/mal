@@ -1,40 +1,46 @@
-# L() : Reverse the entire main stack into T
+# Globals
+# T  Token stack, with first token at the top
+
+# R() : rep()
 [
- zSA      # A = stack depth
- [
-  ST      # push-store -> T
-  z0<B    # while stack
- ]sB lBx
- LAST     # push num tokens -> T
+  lLx            # L(tokens...) -> T
+  lPx            # P()
+  []p           # print ascii 26 as a signal to flush
+]sR
+
+# L(tokens...) : Reverse the entire main stack into T
+[
+  zsn            # n = initial stack depth
+  [z0<b]sa[      # while stack depth > 0
+    ST           #   push -> T
+  lax]sblax
+  lnST           # push init num tokens -> T (register stacks can't tell you their depth)
 ]sL
 
 # P() : Print the whole stack in T
 [
- LTsA     # A = num tokens to pop
- 0sF      # F = counting expressions printed so far
- [        # B: loop while A > 0
-  [       # C(str, chars...) : Print a typed symbol from T
-   LT lA1-sA  # load str <- T
-   dZsD       # D = string length
-   Ps@        # print str and pop
-   [          # E: loop over chars
-    LTs@ lA1-sA  # load char <- T
-    lD1-sD       # D -= 1
-    lD0<E        # goto E while D > 0
-   ]sE lEx 
-  ]sC
-  [[ ]P]sG    # G() : print a space
-  lF0!=G      # Print a space unless it's the first expression
-  lF1+sF      # F += 1
-  LT lA1-sA   # load type <- T
-  d1=C        # if type = 1, print symbol
-  lA0<B       # goto B while A > 0
- ]sB lBx
+  LTst           # t = init num tokens
+  [LTlt1-st]sg   # g() : get next token
+  0sn            # F = counting expressions printed so far
+  [lt0<b]sa[     # while A > 0
+    [[ ]P]sG     # G() : print a space
+    ln0!=G       # Print a space unless it's the first expression
+    ln1+sn       # F += 1
+    lgx          # get next token (type)
+    d;Ix         # look up type in I and execute
+  lax]sblax
 ]sP
 
-# R() : rep()
-[
- lLx          # L(tokens...) -> T
- lPx          # P()
- []p         # print ascii 26 as a signal to flush
-]sR
+# I[1](string, char...) : print a symbol from T
+[                
+  0Sn            # reserve locals
+  lgx            # get next token (string)
+  dZsn           # n = string length
+  Ps@            # print str and pop
+  [ln0<d]sc[     # while n > 0
+    lgx s@       #   get next token (char) and drop
+    ln1-sn       #   n -= 1
+  lcx]sdlcx
+  Lns@           # clear locals
+]1:I
+

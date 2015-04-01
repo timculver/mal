@@ -16,7 +16,8 @@
   while (1) {
     int c = fgetc(dc);
     if (c == EOF) {
-      exit(0);
+      clearerr(dc); break;
+      //exit(0);
     }
     if (c == '\26')
       break;
@@ -54,7 +55,25 @@
 %%
 
 int main(int argc, char **argv) {
-  dc = popen("dc step0_repl.dc -", "r+");
+  int ch;
+  int use_dc = 1;
+  while ((ch = getopt(argc, argv, "t")) != -1) {
+    switch (ch) {
+    case 't':
+      use_dc = 0;
+      break;
+    default:
+      printf("usage: %s [-t]\n -t: tokens only; don't start dc\n", argv[0]);
+      exit(0);
+    }
+  }
+  argc -= optind;
+  argv += optind;
+
+  if (use_dc)
+    dc = popen("dc types.dc step0_repl.dc -", "r+");
+  else
+    dc = stdout;
   ++argv, --argc;  /* skip over program name */
   if ( argc > 0 )
     yyin = fopen( argv[0], "r" );
