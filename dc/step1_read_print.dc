@@ -1,0 +1,46 @@
+# Globals
+# T  Token stack, with first token at the top
+
+# R() : rep()
+[
+  lLx            # L(tokens...) -> T
+  lPx            # P()
+  []p           # print ascii 26 as a signal to flush
+]sR
+
+# L(tokens...) : Reverse the entire main stack into T
+[
+  zsn            # n = initial stack depth
+  [z0<b]sa[      # while stack depth > 0
+    ST           #   push -> T
+  lax]sblax
+  lnST           # push init num tokens -> T (register stacks can't tell you their depth)
+]sL
+
+# P() : Print the whole stack in T
+[
+  LTst           # t = init num tokens
+  [LTlt1-st]sg   # g() : get next token
+  0sn            # F = counting expressions printed so far
+  [lt0<b]sa[     # while A > 0
+    [[ ]P]sG     # G() : print a space
+    ln0!=G       # Print a space unless it's the first expression
+    ln1+sn       # F += 1
+    lgx          # get next token (type)
+    d;Ix         # look up type in I and execute
+  lax]sblax
+]sP
+
+# I[1](string, char...) : print a symbol from T
+[                
+  0Sn            # reserve locals
+  lgx            # get next token (string)
+  dZsn           # n = string length
+  Ps@            # print str and pop
+  [ln0<d]sc[     # while n > 0
+    lgx s@       #   get next token (char) and drop
+    ln1-sn       #   n -= 1
+  lcx]sdlcx
+  Lns@           # clear locals
+]1:I
+

@@ -54,31 +54,42 @@
 
 %%
 
+void usage(char* progname) {
+  printf("usage: %s [-t] stepN_whatever.dc\n -t: tokens only; don't start dc\n", progname);
+  exit(0);
+}
+
 int main(int argc, char **argv) {
   int ch;
   int use_dc = 1;
+  char* progname = argv[0];
   while ((ch = getopt(argc, argv, "t")) != -1) {
     switch (ch) {
     case 't':
       use_dc = 0;
       break;
     default:
-      printf("usage: %s [-t]\n -t: tokens only; don't start dc\n", argv[0]);
-      exit(0);
+      usage(progname);
     }
   }
   argc -= optind;
   argv += optind;
 
-  if (use_dc)
-    dc = popen("dc types.dc step0_repl.dc -", "r+");
-  else
+  if (argc == 0)
+    usage(progname);
+  
+  char* dcfile = argv[0];
+
+  if (use_dc) {
+	char cmd[4096];
+	snprintf(cmd, 4096, "dc types.dc %s -", dcfile);
+	//fprintf(stderr, "cmd = %s\n", cmd);
+    dc = popen(cmd, "r+");
+  } else {
     dc = stdout;
+  }
   ++argv, --argc;  /* skip over program name */
-  if ( argc > 0 )
-    yyin = fopen( argv[0], "r" );
-  else
-    yyin = stdin;
+  yyin = stdin;
   fprintf(stdout, "user> ");
   yylex();
   pclose(dc);
