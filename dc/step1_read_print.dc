@@ -1,46 +1,69 @@
 # Globals
-# T  Token stack, with first token at the top
+       # T  Token stack, with first token at the top
+       # t  Size of T (register stacks can't tell you their depth)
+       # Y  Symbol table. Y[i] is a large number; Y[i+1] is the string.
+0sy    # y  Next free entry in Y (always even).
 
 # R() : rep()
 [
   lLx            # L(tokens...) -> T
   lPx            # P()
+  ;Ix            # Pop type, pop address, call I[type](address)
   []p           # print ascii 26 as a signal to flush
 ]sR
 
 # L(tokens...) : Reverse the entire main stack into T
 [
-  zsn            # n = initial stack depth
+  zst            # t = initial stack depth
   [z0<b]sa[      # while stack depth > 0
     ST           #   push -> T
   lax]sblax
-  lnST           # push init num tokens -> T (register stacks can't tell you their depth)
 ]sL
 
-# P() : Print the whole stack in T
+# g() : get next token
+[LTlt1-st]sg
+
+# P() : Read an expression from T
 [
-  LTst           # t = init num tokens
-  [LTlt1-st]sg   # g() : get next token
-  0sn            # F = counting expressions printed so far
-  [lt0<b]sa[     # while A > 0
-    [[ ]P]sG     # G() : print a space
-    ln0!=G       # Print a space unless it's the first expression
-    ln1+sn       # F += 1
+  [lt0<b]sa[     # while t > 0
     lgx          # get next token (type)
-    d;Ix         # look up type in I and execute
+    s@           # Drop the type, since only symbols are implemented so far.
+    lJx          # Save symbol in table; returns address of symbol.
+    1            # Push the type.
   lax]sblax
 ]sP
 
-# I[1](string, char...) : print a symbol from T
-[                
-  0Sn            # reserve locals
-  lgx            # get next token (string)
-  dZsn           # n = string length
-  Ps@            # print str and pop
-  [ln0<d]sc[     # while n > 0
-    lgx s@       #   get next token (char) and drop
-    ln1-sn       #   n -= 1
-  lcx]sdlcx
-  Lns@           # clear locals
+# I[1](string, char...) : print a symbol
+[
+  1+;YP          # Print and pop Y[address+1].
 ]1:I
 
+# J() : read a symbol from T
+[
+  0Sn0Sa0Sb        # reserve locals
+  lgx              # get next token (string)
+  dZsn             # n = string length
+  ly1+:Y           # Y[y+1] = string
+  [ln0<b]sa[       # while n > 0
+    ly;Y 100*      #   Y[y] * 100
+    lgx+32-        #   + next token - 32
+    ly:Y           #   -> Y[y]
+    ln1-sn         #   n -= 1
+  lax]sblax
+  ly               # Push current value of y as return value of J
+  ly2+sy           # y += 2
+  Lns@Las@Lbs@     # clear locals
+]sJ
+
+# U() : print the symbol table
+[
+  0Sn0Sa0Sb
+  [Symbols:]ps@
+  [lnly>b]sa[      # while n < y
+    [  ]nlnn[	]n   # print n \t
+    ln1+;Yn[	]n   # print Y[n+1] \t
+    ln;Yps@        # print Y[n] \n
+    ln2+sn
+  lax]sblax
+  Lns@Las@Lbs@
+]sU
