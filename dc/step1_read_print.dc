@@ -9,6 +9,7 @@
   lLx            # L(tokens...) -> T
   lPx            # P()
   ;Ix            # Pop type, pop address, call I[type](address)
+  #lUx            # debugging: print symbol table
   []p           # print ascii 26 as a signal to flush
 ]sR
 
@@ -35,30 +36,43 @@
 
 # I[1](string, char...) : print a symbol
 [
-  1+;YP          # Print and pop Y[address+1].
+  1+;YP          # Print Y[address+1].
 ]1:I
 
 # J() : read a symbol from T
 [
-  0Sn0Sa0Sb        # reserve locals
+  0Sn0Sa0Sb0Sc     # reserve locals
   lgx              # get next token (string)
   dZsn             # n = string length
-  ly1+:Y           # Y[y+1] = string
+  ly1+:Y           # Y[y+1] = string. Will be its permanent home if this is a new symbol.
+  # The symbol is represented by a large number made from the ASCII characters of the symbol.
+  # e.g. foo = 707979
+  0
   [ln0<b]sa[       # while n > 0
-    ly;Y 100*      #   Y[y] * 100
+    100*           #   multiply by 100
     lgx+32-        #   + next token - 32
-    ly:Y           #   -> Y[y]
     ln1-sn         #   n -= 1
   lax]sblax
-  ly               # Push current value of y as return value of J
-  ly2+sy           # y += 2
-  Lns@Las@Lbs@     # clear locals
+  ly:Y             # Y[y] = large number. Will be its permanent home if this is a new symbol.
+
+  # Search for existing symbol.
+  ly2-sn           # n = y - 2
+  [ln0 >a          # if n < 0: y += 2 and return y
+   ln;Y ly;Y =b    # else if Y[n] == Y[y]: return n
+   ln2-sn lcx      # else n -= 2 and recur
+  ]sc
+  [ly ly2+sy q]sa
+  [lnq]sb
+  lcx
+
+  Lns@Las@Lbs@Lcs@ # clear locals
 ]sJ
 
 # U() : print the symbol table
 [
   0Sn0Sa0Sb
-  [Symbols:]ps@
+  [
+Symbols:]ps@
   [lnly>b]sa[      # while n < y
     [  ]nlnn[	]n   # print n \t
     ln1+;Yn[	]n   # print Y[n+1] \t
