@@ -4,6 +4,9 @@
        # Y  Symbol table. Y[i] is a large number; Y[i+1] is the string.
 0sy    # y  Next free entry in Y (always even).
 
+# q() : exit caller
+[q]sq
+
 # R() : rep()
 [
   lLx            # L(tokens...) -> T
@@ -15,10 +18,9 @@
 
 # L(tokens...) : Reverse the entire main stack into T
 [
-  zst            # t = initial stack depth
-  [z0<b]sa[      # while stack depth > 0
-    ST           #   push -> T
-  lax]sblax
+  zst              # t = initial stack depth
+  [z0=q ST lax]sa  # Until z == 0: push -> T
+  lax
 ]sL
 
 # g() : get next token
@@ -26,12 +28,12 @@
 
 # P() : Read an expression from T
 [
-  [lt0<b]sa[     # while t > 0
+  [lt0=q         # Until t == 0:
     lgx          # get next token (type)
     s@           # Drop the type, since only symbols are implemented so far.
     lJx          # Save symbol in table; returns address of symbol.
-    1            # Push the type.
-  lax]sblax
+    1]sa         # Push the type.
+  lax
 ]sP
 
 # I[1](string, char...) : print a symbol
@@ -48,19 +50,19 @@
   # The symbol is represented by a large number made from the ASCII characters of the symbol.
   # e.g. foo = 707979
   0
-  [ln0<b]sa[       # while n > 0
+  [ln0=q           # Until n == 0:
     100*           #   multiply by 100
     lgx+32-        #   + next token - 32
     ln1-sn         #   n -= 1
-  lax]sblax
+    lax]salax
   ly:Y             # Y[y] = large number. Will be its permanent home if this is a new symbol.
 
   # Search for existing symbol.
   ly2-sn           # n = y - 2
   [ln0 >a          # if n < 0: y += 2 and return y
    ln;Y ly;Y =b    # else if Y[n] == Y[y]: return n
-   ln2-sn lcx      # else n -= 2 and recur
-  ]sc
+   ln2-sn          # else n -=2 
+   lcx]sc          # recur
   [ly ly2+sy q]sa
   [lnq]sb
   lcx
@@ -70,14 +72,13 @@
 
 # U() : print the symbol table
 [
-  0Sn0Sa0Sb
+  0Sn0Sa
   [
 Symbols:]ps@
-  [lnly>b]sa[      # while n < y
-    [  ]nlnn[	]n   # print n \t
-    ln1+;Yn[	]n   # print Y[n+1] \t
-    ln;Yps@        # print Y[n] \n
-    ln2+sn
-  lax]sblax
-  Lns@Las@Lbs@
+  0[dly=q          # until n == y:
+    [  ]ndn[	]n   #   print n \t
+    d1+;Yn[	]n     #   print Y[n+1] \t
+    d;Yps@         #   print Y[n] \n
+    2+lax]salax
+  Lns@Las@
 ]sU
