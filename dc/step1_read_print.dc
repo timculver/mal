@@ -1,8 +1,8 @@
 # Globals
        # T  Token stack, with first token at the top
        # t  Size of T (register stacks can't tell you their depth)
-       # Y  Symbol table. Y[i] is a large number; Y[i+1] is the string.
-0sy    # y  Next free entry in Y (always even).
+       # M  Memory, as an array.
+0sm    # m  Next free entry in M.
 
 # q() : exit caller
 [q]sq
@@ -11,8 +11,7 @@
 [
   lLx            # L(tokens...) -> T
   lPx            # P()
-  ;Ix            # Pop type, pop address, call I[type](address)
-  #lUx            # debugging: print symbol table
+  lIx            # Print
   []p           # print ascii 26 as a signal to flush
 ]sR
 
@@ -28,25 +27,26 @@
 
 # P() : Read an expression from T
 [
-  [lt0=q         # Until t == 0:
-    lgx          # get next token (type)
-    s@           # Drop the type, since only symbols are implemented so far.
-    lJx          # Save symbol in table; returns address of symbol.
-    1]sa         # Push the type.
-  lax
+  lgx          # get next token (type)
+  ;Kx          # dispatch to K
 ]sP
 
-# I[1](string, char...) : print a symbol
+# K[0]() : read an integer from T into M, return address
 [
-  1+;YP          # Print Y[address+1].
-]1:I
+  0lm:M            # M[m] = 0
+  lgx
+  lm1+:M           # M[m+1] = number
+  lm               # return m
+  lm2+sm           # m += 2
+]0:K
 
-# J() : read a symbol from T
+# K[1]() : read a symbol from T into M, return address
 [
-  0Sn0Sa0Sb0Sc     # reserve locals
+  0Sn              # reserve locals
+  1lm:M            # M[m] = 1
   lgx              # get next token (string)
   dZsn             # n = string length
-  ly1+:Y           # Y[y+1] = string. Will be its permanent home if this is a new symbol.
+  lm2+:M           # M[m+2] = string
   # The symbol is represented by a large number made from the ASCII characters of the symbol.
   # e.g. foo = 707979
   0
@@ -55,30 +55,23 @@
     lgx+32-        #   + next token - 32
     ln1-sn         #   n -= 1
     lax]salax
-  ly:Y             # Y[y] = large number. Will be its permanent home if this is a new symbol.
+  lm1+:M           # M[m+1] = large number
+  lm               # return m
+  lm3+sm           # m += 3
+  Lns@             # restore locals
+]1:K
 
-  # Search for existing symbol.
-  ly2-sn           # n = y - 2
-  [ln0 >a          # if n < 0: y += 2 and return y
-   ln;Y ly;Y =b    # else if Y[n] == Y[y]: return n
-   ln2-sn          # else n -=2 
-   lcx]sc          # recur
-  [ly ly2+sy q]sa
-  [lnq]sb
-  lcx
-
-  Lns@Las@Lbs@Lcs@ # clear locals
-]sJ
-
-# U() : print the symbol table
+# I(address) : print object at M[address]
 [
-  0Sn0Sa
-  [
-Symbols:]ps@
-  0[dly=q          # until n == y:
-    [  ]ndn[	]n   #   print n \t
-    d1+;Yn[	]n     #   print Y[n+1] \t
-    d;Yps@         #   print Y[n] \n
-    2+lax]salax
-  Lns@Las@
-]sU
+  d;M;Jx
+]sI
+
+# J[0](address) : print object at M[address] as number
+[
+  1+;Mn
+]0:J
+
+# J[1](address) : print object at M[address] as symbol
+[
+  2+;Mn
+]1:J

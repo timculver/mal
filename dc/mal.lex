@@ -1,4 +1,5 @@
 /* Token representation:
+   0 77                  the number 77
    1 [foo] 102 111 111   the symbol `foo`
    2 [bar]               "bar"
    3                     ~@
@@ -45,6 +46,10 @@
   fprintf(dc, "2 [%s]\n", yytext + 1); 
 }
 
+[0-9]+ {
+  fprintf(dc, "0 %s\n", yytext);
+}
+
 [^ \t\r\n\[\]{}('"`,;)]* { 
   fprintf(dc, "1 [%s] ", yytext);
   for (char* c = yytext; *c; c++)
@@ -82,7 +87,7 @@ int main(int argc, char **argv) {
 
   if (use_dc) {
 	char cmd[4096];
-	snprintf(cmd, 4096, "dc types.dc %s -", dcfile);
+	snprintf(cmd, 4096, "dc types.dc %s - 2>&1", dcfile);
 	//fprintf(stderr, "cmd = %s\n", cmd);
     dc = popen(cmd, "r+");
   } else {
