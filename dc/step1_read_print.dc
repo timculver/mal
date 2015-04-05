@@ -1,6 +1,5 @@
 # Globals
        # T  Token stack, with first token at the top
-       # t  Size of T (register stacks can't tell you their depth)
        # M  Memory, as an array.
 0sm    # m  Next free entry in M.
 
@@ -9,32 +8,17 @@
 
 # R() : rep()
 [
-  lLx            # L(tokens...) -> T
-  lPx            # P()
-  lIx            # Print
+  [z0=q          # Until z == 0: push -> T
+    ST lax]salax
+  LT;Kx          # Read an expression from T, pushing address
+  d;M;Jx         # Print the object at the address
   []p           # print ascii 26 as a signal to flush
 ]sR
-
-# L(tokens...) : Reverse the entire main stack into T
-[
-  zst              # t = initial stack depth
-  [z0=q ST lax]sa  # Until z == 0: push -> T
-  lax
-]sL
-
-# g() : get next token
-[LTlt1-st]sg
-
-# P() : Read an expression from T
-[
-  lgx          # get next token (type)
-  ;Kx          # dispatch to K
-]sP
 
 # K[0]() : read an integer from T into M, return address
 [
   0lm:M            # M[m] = 0
-  lgx
+  LT
   lm1+:M           # M[m+1] = number
   lm               # return m
   lm2+sm           # m += 2
@@ -44,7 +28,7 @@
 [
   0Sn              # reserve locals
   1lm:M            # M[m] = 1
-  lgx              # get next token (string)
+  LT               # get next token (string)
   dZsn             # n = string length
   lm2+:M           # M[m+2] = string
   # The symbol is represented by a large number made from the ASCII characters of the symbol.
@@ -52,7 +36,7 @@
   0
   [ln0=q           # Until n == 0:
     100*           #   multiply by 100
-    lgx+32-        #   + next token - 32
+    LT+32-         #   + next token - 32
     ln1-sn         #   n -= 1
     lax]salax
   lm1+:M           # M[m+1] = large number
@@ -61,17 +45,6 @@
   Lns@             # restore locals
 ]1:K
 
-# I(address) : print object at M[address]
-[
-  d;M;Jx
-]sI
-
-# J[0](address) : print object at M[address] as number
-[
-  1+;Mn
-]0:J
-
-# J[1](address) : print object at M[address] as symbol
-[
-  2+;Mn
-]1:J
+# J[type](address) : print object at M[address]
+[ 1+;Mn    ]0:J
+[ 2+;Mn    ]1:J
