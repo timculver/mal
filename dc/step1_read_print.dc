@@ -10,24 +10,24 @@
 [
   [z0=q          # Until z == 0: push -> T
     ST lax]salax
-  LT;Kx          # Read an expression from T, pushing address
+  LTd;Kx          # Read an expression from T, pushing address
   d;M;Jx         # Print the object at the address
   []p           # print ascii 26 as a signal to flush
 ]sR
 
-# K[0]() : read an integer from T into M, return address
+# K[0](type) : read an integer from T into M, return address
 [
-  0lm:M            # M[m] = 0
+  lm:M             # M[m] = type
   LT
   lm1+:M           # M[m+1] = number
   lm               # return m
   lm2+sm           # m += 2
 ]0:K
 
-# K[1]() : read a symbol from T into M, return address
+# K[{1,2}](type) : read a symbol from T into M, return address
 [
-  0Sn              # reserve locals
-  1lm:M            # M[m] = 1
+  0Sn0Sa           # reserve locals
+  lm:M             # M[m] = type
   LT               # get next token (string)
   dZsn             # n = string length
   lm2+:M           # M[m+2] = string
@@ -42,9 +42,10 @@
   lm1+:M           # M[m+1] = large number
   lm               # return m
   lm3+sm           # m += 3
-  Lns@             # restore locals
-]1:K
+  Lns@Las@         # restore locals
+]d 1:K 2:K
 
 # J[type](address) : print object at M[address]
-[ 1+;Mn    ]0:J
-[ 2+;Mn    ]1:J
+[ 1+;Mn          ]0:J
+[ 2+;Mn          ]1:J
+[ ["]n2+;Mn["]n  ]2:J

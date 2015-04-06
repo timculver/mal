@@ -43,7 +43,11 @@
      other restrictions. */
   int len_including_quotes = strlen(yytext);
   yytext[len_including_quotes - 1] = '\0';
-  fprintf(dc, "2 [%s]\n", yytext + 1); 
+	yytext++;
+  fprintf(dc, "2 [%s]", yytext); 
+  for (char* c = yytext; *c; c++)
+    fprintf(dc, " %d", *c);
+  fprintf(dc, "\n");
 }
 
 [0-9]+ {
@@ -51,9 +55,9 @@
 }
 
 [^ \t\r\n\[\]{}('"`,;)]* { 
-  fprintf(dc, "1 [%s] ", yytext);
+  fprintf(dc, "1 [%s]", yytext);
   for (char* c = yytext; *c; c++)
-    fprintf(dc, "%d ", *c);
+    fprintf(dc, " %d", *c);
   fprintf(dc, "\n");
 }
 
