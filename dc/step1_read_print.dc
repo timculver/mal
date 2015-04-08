@@ -1,7 +1,11 @@
 # Globals
        # T  Token stack, with first token at the top
        # M  Memory, as an array.
-0sm    # m  Next free entry in M.
+       # m  Next free entry in M.
+
+# Initialize M and m.
+4 0:M # end-of-list
+1sm
 
 # q() : exit caller
 [q]sq
@@ -10,7 +14,8 @@
 [
   [z0=q          # Until z == 0: push -> T
     ST lax]salax
-  LTd;Kx          # Read an expression from T, pushing address
+  LTd;Kx         # Read an expression from T, pushing address
+  #lZxf          # Debugging: print memory
   d;M;Jx         # Print the object at the address
   []p           # print ascii 26 as a signal to flush
 ]sR
@@ -24,7 +29,7 @@
   lm2+sm           # m += 2
 ]0:K
 
-# K[{1,2}](type) : read a symbol from T into M, return address
+# K[{1,2}](type) : read a symbol or string from T into M, return address
 [
   0Sn0Sa           # reserve locals
   lm:M             # M[m] = type
@@ -45,7 +50,60 @@
   Lns@Las@         # restore locals
 ]d 1:K 2:K
 
+# K[40](type) : read a list from T into M, return address
+[
+  0Sa0Sb0Sc
+  s@               # Pop type
+  [s@0q]sc         # define end condition: pop ')', push 0
+  [LTd41=c         # Until token == ')':
+    d;Kx           # Read a list element
+    lax            # Recursively read the rest of the list
+	  3lm:M          # Allocate a cons cell. M[m] = 3
+	  lm2+:M         # m[m+2] = cdr
+	  lm1+:M         # m[m+1] = car
+    lm             # return m
+    lm3+sm         # m += 3
+    ]salax
+  Las@Lbs@Lcs@
+]40:K
+
+# K[41](type) : read ')' from T, return end-of-list
+[
+  s@              # Pop type
+  0               # return end-of-list
+]41:K
+
 # J[type](address) : print object at M[address]
 [ 1+;Mn          ]0:J
 [ 2+;Mn          ]1:J
 [ ["]n2+;Mn["]n  ]2:J
+[ [(]n lOx       ]3:J # print list with leading '('
+[ s@[()]n        ]4:J
+
+# O(address): print list impl, without leading '(' or ' '
+[
+  d0=Q            # end of list
+  d1+;M d;M;Jx    # print car
+  2+;M            # get cdr
+  d0!=U           # print ' ' if cdr != end-of-list
+  lOx             # recur
+]sO
+[s@[)]nq]sQ
+[[ ]n]sU
+
+# Z() : dump memory
+[
+  0Sa
+  [-----
+]n
+  0
+  [dlm=q
+    dn[  ]nd;Mn[
+]n
+    1+lax]salax
+  s@
+  [-----
+]n
+  Las@
+]sZ
+    

@@ -2,5 +2,6 @@
 #  0: number
 #  1: symbol (large number; string)
 #  2: string (string)
-#  3: lambda (string containing a macro)
-#  4: cons cell (two addresses)
+#  3: cons cell (two addresses)
+#  4: end-of-list (only instance is at address 0)
+#  5: lambda (string containing a macro)
