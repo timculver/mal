@@ -1,0 +1,16 @@
+# Globals
+# T  Token stack, with first token at the top
+# M  Memory, as an array.
+# m  Next free entry in M.
+
+# R(tokens...) : rep(), read-eval-print
+[
+  lAx            # Read expression, returning address
+  #lZxf          # Debugging: print memory
+  lEx            # Eval
+  d;M;Jx         # Print the object at the address
+  []p           # Print ascii 26 as a signal to flush
+]sR
+
+# E(address) : eval()
+[]sE

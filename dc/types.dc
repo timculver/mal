@@ -5,3 +5,20 @@
 #  3: cons cell (two addresses)
 #  4: end-of-list (only instance is at address 0)
 #  5: lambda (string containing a macro)
+
+## Utility macros
+
+# q() : exit caller
+[q]sq
+
+## Type operations
+
+# C(car, cdr) : cons
+[
+  3lm:M          # Allocate a cons cell. M[m] = 3
+  lm1+:M         # m[m+1] = car
+  lm2+:M         # m[m+2] = cdr
+  lm             # return m
+  lm3+sm         # m += 3
+]sC
+

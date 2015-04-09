@@ -1,0 +1,9 @@
+# Initialize M and m.
+# Depends on reader.dc.
+
+4 0:M 1sm # M[0] = end-of-list
+1 [quote] 113 117 111 116 101 lAxc # M[1]
+1 [quasiquote] 113 117 97 115 105 113 117 111 116 101 lAxc # M[4]
+1 [unquote] 117 110 113 117 111 116 101 lAxc # M[7]
+1 [splice-unquote] 115 112 108 105 99 101 45 117 110 113 117 111 116 101 lAxc # M[10]
+

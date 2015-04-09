@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 
   if (use_dc) {
     char cmd[4096];
-    snprintf(cmd, 4096, "dc types.dc %s - 2>&1", dcfile);
+    snprintf(cmd, 4096, "dc types.dc reader.dc printer.dc init.dc %s - 2>&1", dcfile);
     dc = popen(cmd, "r+");
   } else {
     dc = stdout;

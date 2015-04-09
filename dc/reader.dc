@@ -1,0 +1,65 @@
+# A(tokens...) : reverse the entire stack into T, then read 1 expression from T, return address
+[
+  [z0=q          # Until z == 0: push -> T
+    ST lax]salax
+  LTd;Kx         # Read an expression from T, pushing address
+]sA
+
+# K[0](type) : read an integer from T into M, return address
+[
+  lm:M             # M[m] = type
+  LT
+  lm1+:M           # M[m+1] = number
+  lm               # return m
+  lm2+sm           # m += 2
+]0:K
+
+# K[{1,2}](type) : read a symbol or string from T into M, return address
+[
+  0Sn0Sa           # reserve locals
+  lm:M             # M[m] = type
+  LT               # get next token (string)
+  dZsn             # n = string length
+  lm2+:M           # M[m+2] = string
+  # The symbol is represented by a large number made from the ASCII characters of the symbol.
+  # e.g. foo = 707979
+  0
+  [ln0=q           # Until n == 0:
+    100*           #   multiply by 100
+    LT+32-         #   + next token - 32
+    ln1-sn         #   n -= 1
+    lax]salax
+  lm1+:M           # M[m+1] = large number
+  lm               # return m
+  lm3+sm           # m += 3
+  Lns@Las@         # restore locals
+]d 1:K 2:K
+
+# K[39](type) : quote
+[
+  s@               # Pop type
+  LTd;Kx           # Read an expression
+  0r lCx           # Wrap in a list
+  1 lCx            # cons quote
+]39:K
+
+# K[96](type) : quasiquote
+[ s@ LTd;Kx 0r lCx 4 lCx ]96:K
+# K[126](type) : unquote
+[ s@ LTd;Kx 0r lCx 7 lCx ]126:K
+# K[3](type) : splice-unquote
+[ s@ LTd;Kx 0r lCx 10 lCx ]3:K
+
+# K[40](type) : read a list from T into M, return address
+[
+  0Sa0Sb0Sc
+  s@               # Pop type
+  [s@0q]sc         # define end condition: pop ')', push 0
+  [LTd41=c         # Until token == ')':
+    d;Kx           # Read a list element
+    lax            # Recursively read the rest of the list
+    rlCx           # swap, cons
+    ]salax
+  Las@Lbs@Lcs@
+]40:K
+

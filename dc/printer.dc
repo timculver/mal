@@ -1,0 +1,33 @@
+# J[type](address) : print object at M[address]
+[ 1+;Mn          ]0:J
+[ 2+;Mn          ]1:J
+[ ["]n2+;Mn["]n  ]2:J
+[ [(]n lOx       ]3:J # print list with leading '('
+[ s@[()]n        ]4:J
+
+# O(address): print list impl, without leading '(' or ' '
+[
+  d0=Q            # end of list
+  d1+;M d;M;Jx    # print car
+  2+;M            # get cdr
+  d0!=U           # print ' ' if cdr != end-of-list
+  lOx             # recur
+]sO
+[s@[)]nq]sQ
+[[ ]n]sU
+
+# Z() : dump memory
+[
+  0Sa
+  [-----
+]n
+  0
+  [dlm=q
+    dn[  ]nd;Mn[
+]n
+    1+lax]salax
+  s@
+  [-----
+]n
+  Las@
+]sZ
