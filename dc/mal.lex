@@ -17,8 +17,8 @@
   while (1) {
     int c = fgetc(dc);
     if (c == EOF) {
-      clearerr(dc); break;
-      //exit(0);
+      clearerr(dc);
+      break;
     }
     if (c == '\26')
       break;
@@ -54,7 +54,7 @@
   fprintf(dc, "0 %s\n", yytext);
 }
 
-[^ \t\r\n\[\]{}('"`,;)]* { 
+[^ \t\r\n\[\]{}('"`,;)~]* { 
   fprintf(dc, "1 [%s]", yytext);
   for (char* c = yytext; *c; c++)
     fprintf(dc, " %d", *c);
@@ -90,9 +90,8 @@ int main(int argc, char **argv) {
   char* dcfile = argv[0];
 
   if (use_dc) {
-	char cmd[4096];
-	snprintf(cmd, 4096, "dc types.dc %s - 2>&1", dcfile);
-	//fprintf(stderr, "cmd = %s\n", cmd);
+    char cmd[4096];
+    snprintf(cmd, 4096, "dc types.dc %s - 2>&1", dcfile);
     dc = popen(cmd, "r+");
   } else {
     dc = stdout;

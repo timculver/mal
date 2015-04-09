@@ -3,22 +3,23 @@
        # M  Memory, as an array.
        # m  Next free entry in M.
 
-# Initialize M and m.
-4 0:M # end-of-list
-1sm
-
 # q() : exit caller
 [q]sq
 
-# R() : rep()
+# R(tokens...) : rep(), read-eval-print
+[
+  lAx            # Read expression, returning address
+  #lZxf          # Debugging: print memory
+  d;M;Jx         # Print the object at the address
+  []p           # Print ascii 26 as a signal to flush
+]sR
+
+# A(tokens...) : reverse the entire stack into T, then read 1 expression from T, return address
 [
   [z0=q          # Until z == 0: push -> T
     ST lax]salax
   LTd;Kx         # Read an expression from T, pushing address
-  #lZxf          # Debugging: print memory
-  d;M;Jx         # Print the object at the address
-  []p           # print ascii 26 as a signal to flush
-]sR
+]sA
 
 # K[0](type) : read an integer from T into M, return address
 [
@@ -50,6 +51,21 @@
   Lns@Las@         # restore locals
 ]d 1:K 2:K
 
+# K[39](type) : quote
+[
+  s@               # Pop type
+  LTd;Kx           # Read an expression
+  0r lCx           # Wrap in a list
+  1 lCx            # cons quote
+]39:K
+
+# K[96](type) : quasiquote
+[ s@ LTd;Kx 0r lCx 4 lCx ]96:K
+# K[126](type) : unquote
+[ s@ LTd;Kx 0r lCx 7 lCx ]126:K
+# K[3](type) : splice-unquote
+[ s@ LTd;Kx 0r lCx 10 lCx ]3:K
+
 # K[40](type) : read a list from T into M, return address
 [
   0Sa0Sb0Sc
@@ -58,14 +74,19 @@
   [LTd41=c         # Until token == ')':
     d;Kx           # Read a list element
     lax            # Recursively read the rest of the list
-	  3lm:M          # Allocate a cons cell. M[m] = 3
-	  lm2+:M         # m[m+2] = cdr
-	  lm1+:M         # m[m+1] = car
-    lm             # return m
-    lm3+sm         # m += 3
+    rlCx           # swap, cons
     ]salax
   Las@Lbs@Lcs@
 ]40:K
+
+# C(car, cdr) : cons
+[
+  3lm:M          # Allocate a cons cell. M[m] = 3
+  lm1+:M         # m[m+1] = car
+  lm2+:M         # m[m+2] = cdr
+  lm             # return m
+  lm3+sm         # m += 3
+]sC
 
 # K[41](type) : read ')' from T, return end-of-list
 [
@@ -106,4 +127,11 @@
 ]n
   Las@
 ]sZ
-    
+
+# Initialize M and m.
+4 0:M 1sm # M[0] = end-of-list
+1 [quote] 113 117 111 116 101 lAxc # M[1]
+1 [quasiquote] 113 117 97 115 105 113 117 111 116 101 lAxc # M[4]
+1 [unquote] 117 110 113 117 111 116 101 lAxc # M[7]
+1 [splice-unquote] 115 112 108 105 99 101 45 117 110 113 117 111 116 101 lAxc # M[10]
+
